@@ -12,6 +12,8 @@ to a central CSV file.
 
 Notes:
 - Highlight color determines the skill classification (hard vs soft)
+- Duplicate skills per job posting are not allowed (goal: tracking skill presence, 
+  not skill-mention frequency)
 
 """
 
@@ -38,14 +40,16 @@ COLOR_TO_SKILL = {
     WD_COLOR.PINK: "soft"
 }
 
+processed_files = 0 # Counter 
 
 # Batch skill extraction 
 for filename in os.listdir(DIR_PATH):
     
     if not filename.lower().endswith(".docx"):
         continue # skip non-Word files
-
+    processed_files += 1
     
+
     # --- OPEN DOCUMENT ---
     doc_path = os.path.join(DIR_PATH, filename)
     doc = Document(doc_path)
@@ -57,10 +61,13 @@ for filename in os.listdir(DIR_PATH):
         if paragraph.text.startswith("Job ID:"):
             job_id = paragraph.text.replace("Job ID:", "").strip()
             break
-
     # Raise exception on missing Job ID
     if job_id is None or not job_id:
         raise ValueError(f'Job ID not found in file "{filename}".')
+
+
+    # Track existing job_id & skill pairs to prevent duplicates 
+    existing_pairs = set()
 
 
     # --- EXTRACT SKILLS ---
@@ -74,21 +81,30 @@ for filename in os.listdir(DIR_PATH):
                 skill_type = COLOR_TO_SKILL.get(run.font.highlight_color, "invalid")
             else: 
                 if buffer.strip():
-                    all_rows.append({
-                        "job_id": job_id, 
-                        "extracted_skill": buffer.strip(), 
-                        "skill_type": skill_type
-                    })
+                    id_skill_pair = (job_id, buffer.strip())
+
+                    if id_skill_pair not in existing_pairs:
+                        all_rows.append({
+                            "job_id": job_id, 
+                            "extracted_skill": buffer.strip(), 
+                            "skill_type": skill_type
+                        })
+                        existing_pairs.add(id_skill_pair)
+                    
                     buffer = ""
                     skill_type = None
 
         # flush at end of paragraph
         if buffer.strip():
-            all_rows.append({
-                "job_id": job_id, 
-                "extracted_skill": buffer.strip(), 
-                "skill_type": skill_type
-            })
+            id_skill_pair = (job_id, buffer.strip())
+
+            if id_skill_pair not in existing_pairs:
+                all_rows.append({
+                    "job_id": job_id, 
+                    "extracted_skill": buffer.strip(), 
+                    "skill_type": skill_type
+                })
+                existing_pairs.add(id_skill_pair)
 
 
 # --- WRITE TO CSV ---
@@ -99,3 +115,4 @@ with open(OUTPUT_PATH, mode="w", newline="", encoding="utf-8") as file:
     )
     writer.writeheader()
     writer.writerows(all_rows)
+
