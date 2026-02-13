@@ -58,6 +58,10 @@ for filename in os.listdir(DIR_PATH):
             job_id = paragraph.text.replace("Job ID:", "").strip()
             break
 
+    # Raise exception on missing Job ID
+    if job_id is None or not job_id:
+        raise ValueError(f'Job ID not found in file "{filename}".')
+
 
     # --- EXTRACT SKILLS ---
     for paragraph in doc.paragraphs:
