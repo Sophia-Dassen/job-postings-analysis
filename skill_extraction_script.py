@@ -53,6 +53,7 @@ for filename in os.listdir(DIR_PATH):
     # --- OPEN DOCUMENT ---
     doc_path = os.path.join(DIR_PATH, filename)
     doc = Document(doc_path)
+    print(f'Processing file: {filename}')
 
 
     # --- EXTRACT JOB ID ---
@@ -116,3 +117,8 @@ with open(OUTPUT_PATH, mode="w", newline="", encoding="utf-8") as file:
     writer.writeheader()
     writer.writerows(all_rows)
 
+
+finished_log_msg = (f'Extraction complete: {len(all_rows)} skills extracted from {processed_files} job postings.')
+print("=" * len(finished_log_msg))
+print(finished_log_msg)
+print("=" * len(finished_log_msg))
