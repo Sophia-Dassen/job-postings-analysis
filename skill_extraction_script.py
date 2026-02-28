@@ -8,7 +8,7 @@ to a central CSV file.
 - Input: Directory containing annotated Word documents with the same structure 
          (job ID in the metadata header and highlighted skill phrases in the job 
          posting excerpt)
-- Output: A single CSV file with the fields (job_id, extracted_skill, skill_type)
+- Output: A single CSV file with the fields (job_id, extracted_skill, observed_skill_type)
 
 Notes:
 - Highlight color determines the skill classification (hard vs soft)
@@ -74,12 +74,12 @@ for filename in os.listdir(DIR_PATH):
     # --- EXTRACT SKILLS ---
     for paragraph in doc.paragraphs:
         buffer = ""
-        skill_type = None
+        observed_skill_type = None
 
         for run in paragraph.runs:
             if run.font.highlight_color is not None:
                 buffer += run.text
-                skill_type = COLOR_TO_SKILL.get(run.font.highlight_color, "invalid")
+                observed_skill_type = COLOR_TO_SKILL.get(run.font.highlight_color, "invalid")
             else: 
                 if buffer.strip():
                     id_skill_pair = (job_id, buffer.strip())
@@ -88,12 +88,12 @@ for filename in os.listdir(DIR_PATH):
                         all_rows.append({
                             "job_id": job_id, 
                             "extracted_skill": buffer.strip(), 
-                            "skill_type": skill_type
+                            "observed_skill_type": observed_skill_type
                         })
                         existing_pairs.add(id_skill_pair)
                     
                     buffer = ""
-                    skill_type = None
+                    observed_skill_type = None
 
         # flush at end of paragraph
         if buffer.strip():
@@ -103,7 +103,7 @@ for filename in os.listdir(DIR_PATH):
                 all_rows.append({
                     "job_id": job_id, 
                     "extracted_skill": buffer.strip(), 
-                    "skill_type": skill_type
+                    "observed_skill_type": observed_skill_type
                 })
                 existing_pairs.add(id_skill_pair)
 
@@ -112,7 +112,7 @@ for filename in os.listdir(DIR_PATH):
 with open(OUTPUT_PATH, mode="w", newline="", encoding="utf-8") as file:
     writer = csv.DictWriter(
         file,
-        fieldnames=["job_id", "extracted_skill", "skill_type"]
+        fieldnames=["job_id", "extracted_skill", "observed_skill_type"]
     )
     writer.writeheader()
     writer.writerows(all_rows)
