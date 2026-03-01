@@ -55,6 +55,7 @@ METADATA_FIELDS = {
 }
 
 processed_files = 0 # Counter 
+rejected_files = []
 
 # Batch job posting processing 
 for filename in os.listdir(DIR_PATH):
@@ -70,17 +71,6 @@ for filename in os.listdir(DIR_PATH):
     print(f'Processing file: {filename}')
 
 
-    # --- EXTRACT JOB ID ---
-    job_id = None
-    for paragraph in doc.paragraphs:
-        if paragraph.text.startswith("Job ID:"):
-            job_id = paragraph.text.replace("Job ID:", "").strip()
-            break
-    # Raise exception on missing Job ID
-    if job_id is None or not job_id:
-        raise ValueError(f'Job ID not found in file "{filename}".')
-
-
     metadata = {field: None for field in METADATA_FIELDS.values()}
 
     # --- EXTRACT JOB POSTING METADATA ---
@@ -92,7 +82,13 @@ for filename in os.listdir(DIR_PATH):
             if text.startswith(label_prefix):
                 metadata[field] = text.replace(label_prefix, "", 1).strip()
 
-    all_jp_metadata_rows.append(metadata)
+    # Reject file if Job ID is missing and skip skill extraction
+    if not metadata["job_id"]:
+        rejected_files.append(filename)
+        print("Failed to process file due to missing Job ID.")
+        continue # Skip skill extraction and proceed to next job posting
+    else:
+        all_jp_metadata_rows.append(metadata)
 
 
     # Track extracted skills to prevent duplicates per job posting
@@ -112,7 +108,7 @@ for filename in os.listdir(DIR_PATH):
                 skill_text = buffer.strip()
                 if skill_text and skill_text not in extracted_skills:
                     all_skill_rows.append({
-                        "job_id": job_id, 
+                        "job_id": metadata["job_id"], 
                         "extracted_skill": skill_text, 
                         "observed_skill_type": observed_skill_type
                     })
@@ -125,7 +121,7 @@ for filename in os.listdir(DIR_PATH):
         skill_text = buffer.strip()
         if skill_text and skill_text not in extracted_skills:
             all_skill_rows.append({
-                "job_id": job_id, 
+                "job_id": metadata["job_id"], 
                 "extracted_skill": skill_text, 
                 "observed_skill_type": observed_skill_type
             })
@@ -152,7 +148,10 @@ with open(SKILL_OUTPUT_PATH, mode="w", newline="", encoding="utf-8") as file:
     writer.writerows(all_skill_rows)
 
 
-finished_log_msg = (f'Extraction complete: {len(all_skill_rows)} skills extracted from {processed_files} job postings.')
+finished_log_msg = (f'Extraction complete: {len(all_skill_rows)} skills extracted from {processed_files - len(rejected_files)} job postings.')
 print("=" * len(finished_log_msg))
 print(finished_log_msg)
+if rejected_files:
+    print('Rejected files due to missing Job ID:')
+    print(*rejected_files, sep='\n')
 print("=" * len(finished_log_msg))
