@@ -67,8 +67,8 @@ for filename in os.listdir(DIR_PATH):
         raise ValueError(f'Job ID not found in file "{filename}".')
 
 
-    # Track existing job_id & skill pairs to prevent duplicates 
-    existing_pairs = set()
+    # Track extracted skills to prevent duplicates per job posting
+    extracted_skills = set()
 
 
     # --- EXTRACT SKILLS ---
@@ -81,31 +81,27 @@ for filename in os.listdir(DIR_PATH):
                 buffer += run.text
                 observed_skill_type = COLOR_TO_SKILL.get(run.font.highlight_color, "invalid")
             else: 
-                if buffer.strip():
-                    id_skill_pair = (job_id, buffer.strip())
-
-                    if id_skill_pair not in existing_pairs:
-                        all_rows.append({
-                            "job_id": job_id, 
-                            "extracted_skill": buffer.strip(), 
-                            "observed_skill_type": observed_skill_type
-                        })
-                        existing_pairs.add(id_skill_pair)
-                    
-                    buffer = ""
-                    observed_skill_type = None
+                skill_text = buffer.strip()
+                if skill_text and skill_text not in extracted_skills:
+                    all_rows.append({
+                        "job_id": job_id, 
+                        "extracted_skill": skill_text, 
+                        "observed_skill_type": observed_skill_type
+                    })
+                    extracted_skills.add(skill_text)
+                
+                buffer = ""
+                observed_skill_type = None
 
         # flush at end of paragraph
-        if buffer.strip():
-            id_skill_pair = (job_id, buffer.strip())
-
-            if id_skill_pair not in existing_pairs:
-                all_rows.append({
-                    "job_id": job_id, 
-                    "extracted_skill": buffer.strip(), 
-                    "observed_skill_type": observed_skill_type
-                })
-                existing_pairs.add(id_skill_pair)
+        skill_text = buffer.strip()
+        if skill_text and skill_text not in extracted_skills:
+            all_rows.append({
+                "job_id": job_id, 
+                "extracted_skill": skill_text, 
+                "observed_skill_type": observed_skill_type
+            })
+            extracted_skills.add(skill_text)
 
 
 # --- WRITE TO CSV ---
