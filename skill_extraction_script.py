@@ -1,20 +1,26 @@
 """
-Extracts highlighted skill phrases from multiple annotated job postings.
+Extracts metadata and highlighted skill phrases from multiple annotated job postings.
 
-This script loops over a directory of job posting (.docx) files, extracts all 
-highlighted hard and soft skill phrases per job posting, and writes the results 
-to a central CSV file.
+This script loops over a directory of annotated job posting (.docx) files, extracts 
+job posting metadata from the header, highlighted hard and soft skill phrases from 
+the job posting body, then writes the results to two separate CSV files.
 
-- Input: Directory containing annotated Word documents with the same structure 
-         (job ID in the metadata header and highlighted skill phrases in the job 
-         posting excerpt)
-- Output: A single CSV file with the fields (job_id, extracted_skill, observed_skill_type)
+Input: 
+- Directory containing annotated Word documents with a consistent structure: 
+  job posting metadata in the header and highlighted skill phrases in the posting excerpt.
+
+Output: 
+- CSV file containing extracted job posting metadata with the fields: 
+  [job_id, company, job_title, location, source_platform, original_url, date_collected]
+- CSV file containing extracted skill occurrences with the fields:
+  [job_id, extracted_skill, observed_skill_type]
+ 
 
 Notes:
-- Highlight color determines the skill classification (hard vs soft)
+- Highlight color determines the observed skill classification (hard vs soft).
 - Duplicate skills per job posting are not allowed (goal: tracking skill presence, 
-  not skill-mention frequency)
-
+  not skill-mention frequency).
+- Files with a missing Job ID are rejected and logged. 
 """
 
 
