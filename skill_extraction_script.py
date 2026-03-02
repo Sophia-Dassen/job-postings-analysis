@@ -22,6 +22,7 @@ from docx import Document
 from docx.enum.text import WD_COLOR
 import csv
 import os
+from datetime import datetime, timezone
 
 
 # --- CONFIG ---
@@ -54,16 +55,16 @@ METADATA_FIELDS = {
     "Date collected": "date_collected"
 }
 
-processed_files = 0 # Counter 
-rejected_files = []
+total_files = 0  
+rejected_files = {}
 
 # Batch job posting processing 
 for filename in os.listdir(DIR_PATH):
     
     if not filename.lower().endswith(".docx"):
         continue # skip non-Word files
-    processed_files += 1
-    
+    total_files += 1
+
 
     # --- OPEN DOCUMENT ---
     doc_path = os.path.join(DIR_PATH, filename)
@@ -84,7 +85,7 @@ for filename in os.listdir(DIR_PATH):
 
     # Reject file if Job ID is missing and skip skill extraction
     if not metadata["job_id"]:
-        rejected_files.append(filename)
+        rejected_files[filename] = "Missing Job ID"
         print("Failed to process file due to missing Job ID.")
         continue # Skip skill extraction and proceed to next job posting
     else:
@@ -148,10 +149,34 @@ with open(SKILL_OUTPUT_PATH, mode="w", newline="", encoding="utf-8") as file:
     writer.writerows(all_skill_rows)
 
 
-finished_log_msg = (f'Extraction complete: {len(all_skill_rows)} skills extracted from {processed_files - len(rejected_files)} job postings.')
-print("=" * len(finished_log_msg))
-print(finished_log_msg)
+# --- FINAL EXTRACTION SUMMARY LOGGING ---
+DIVIDER = "-" * 50
+successful_files = total_files - len(rejected_files)
+UTC_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+OUTPUT_FILES = {
+    JP_OUTPUT_PATH: all_jp_metadata_rows, 
+    SKILL_OUTPUT_PATH: all_skill_rows
+}
+
+print("\n" + DIVIDER)
+print(f"Extraction run summary")
+print(f"Timestamp: {UTC_timestamp}")
+print(DIVIDER)
+
+print(f'Job postings processed : {successful_files} / {total_files}')
+print(f'Skills extracted       : {len(all_skill_rows)}')
+print(f'Rejected files         : {len(rejected_files)}')
+
 if rejected_files:
-    print('Rejected files due to missing Job ID:')
-    print(*rejected_files, sep='\n')
-print("=" * len(finished_log_msg))
+    print('\nRejected files:')
+    for file, reason in rejected_files.items():
+        print(f'- {file}')
+        print(f'  Reason: {reason}')
+else:
+    print('\nNo rejected files.')
+
+print("\nOutputs:")
+for file, rows in OUTPUT_FILES.items():
+    print(f"- {file} ({len(rows)} rows)")
+
+print(DIVIDER)
