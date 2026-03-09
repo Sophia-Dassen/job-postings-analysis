@@ -104,8 +104,17 @@ for filename in os.listdir(DIR_PATH):
 
         for label, field in LABELS_TO_FIELDS.items():
             label_prefix = f'{label}:'
+
             if text.startswith(label_prefix):
-                metadata[field] = text.replace(label_prefix, "", 1).strip()
+                value = text.removeprefix(label_prefix).strip()
+
+                if metadata[field] is None:
+                    metadata[field] = value
+                else:
+                    print(f"Warning: duplicate metadata '{field}' in {filename}")
+
+                break # Stop looping over metadata labels if match is found and parse next paragraph
+    
 
     # Reject file if required metadata is missing and skip skill extraction
     missing_metadata = [
