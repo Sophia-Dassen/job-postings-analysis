@@ -14,13 +14,13 @@ Output:
   [job_id, company, job_title, location, source_platform, original_url, date_collected]
 - CSV file containing extracted skill occurrences with the fields:
   [job_id, extracted_skill, observed_skill_type]
- 
 
 Notes:
 - Highlight color determines the observed skill classification (hard vs soft).
 - Duplicate skills per job posting are not allowed (goal: tracking skill presence, 
   not skill-mention frequency).
-- Files with a missing Job ID are rejected and logged. 
+- Files missing any required job posting metadata (as defined in the metadata schema) are 
+  rejected and logged. 
 """
 
 
@@ -50,16 +50,34 @@ COLOR_TO_SKILL = {
     WD_COLOR.PINK: "soft"
 }
 
-# --- DICT OF METADATA LABELS & OUTPUT FIELDS ---
-METADATA_FIELDS = {
-    "Job ID": "job_id",
-    "Company": "company",
-    "Job Title": "job_title",
-    "Location": "location",
-    "Source Platform": "source_platform",
-    "Original URL": "original_url",
-    "Date collected": "date_collected"
+# Schema used to extract and validate job posting metadata from source documents
+# Each entry maps a source label to an output field and specifies whether it is required.
+# --- METADATA FIELD DEFINITIONS ---
+METADATA_FIELDS = [
+    {"source_label": "Job ID", "output_field": "job_id", "mandatory": True},
+    {"source_label": "Company", "output_field": "company", "mandatory": True},
+    {"source_label": "Job Title", "output_field": "job_title", "mandatory": True},
+    {"source_label": "Location", "output_field": "location", "mandatory": False},
+    {"source_label": "Source Platform", "output_field": "source_platform", "mandatory": False},
+    {"source_label": "Original URL", "output_field": "original_url", "mandatory": False},
+    {"source_label": "Date collected", "output_field": "date_collected", "mandatory": False}
+]
+
+
+# --- HELPER STRUCTURES FOR METADATA LOOKUPS ---
+LABELS_TO_FIELDS = {
+    f["source_label"]: f["output_field"] for f in METADATA_FIELDS
 }
+
+REQUIRED_FIELDS = {
+    f["output_field"] for f in METADATA_FIELDS
+    if f["mandatory"]
+}
+
+OUTPUT_FIELDS = [
+    f["output_field"] for f in METADATA_FIELDS
+]
+
 
 total_files = 0  
 rejected_files = {}
@@ -77,22 +95,29 @@ for filename in os.listdir(DIR_PATH):
     doc = Document(doc_path)
     print(f'Processing file: {filename}')
 
-
-    metadata = {field: None for field in METADATA_FIELDS.values()}
+    
+    metadata = {field: None for field in OUTPUT_FIELDS}
 
     # --- EXTRACT JOB POSTING METADATA ---
     for paragraph in doc.paragraphs:
         text = paragraph.text.strip()
 
-        for label, field in METADATA_FIELDS.items():
+        for label, field in LABELS_TO_FIELDS.items():
             label_prefix = f'{label}:'
             if text.startswith(label_prefix):
                 metadata[field] = text.replace(label_prefix, "", 1).strip()
 
-    # Reject file if Job ID is missing and skip skill extraction
-    if not metadata["job_id"]:
-        rejected_files[filename] = "Missing Job ID"
-        print("Failed to process file due to missing Job ID.")
+    # Reject file if required metadata is missing and skip skill extraction
+    missing_metadata = [
+        field for field in REQUIRED_FIELDS 
+        if not metadata[field]
+    ]            
+
+    if missing_metadata:        
+        rejected_files[filename] = (
+            f"Missing required metadata: {', '.join(missing_metadata)}"
+        )
+        print(f"Failed to process file due to missing metadata: {', '.join(missing_metadata)}")
         continue # Skip skill extraction and proceed to next job posting
     else:
         all_jp_metadata_rows.append(metadata)
