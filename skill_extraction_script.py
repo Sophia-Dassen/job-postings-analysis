@@ -79,6 +79,46 @@ OUTPUT_FIELDS = [
 ]
 
 
+def extract_metadata(doc, filename):
+    """Extract job posting metadata from a Word .docx file.
+
+    Args:
+        doc (docx.document.Document): Document object representing the contents of a Word job posting file 
+        filename (str): The file name of the job posting Word document used for warning logging
+
+    Returns:
+        dict: Dictionary of output field (key) and extracted metadata (value) pairs
+    """
+    
+    metadata = {field: None for field in OUTPUT_FIELDS}
+    
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+
+        for label, field in LABELS_TO_FIELDS.items():
+            label_prefix = f'{label}:'
+
+            if text.startswith(label_prefix):
+                value = text.removeprefix(label_prefix).strip()
+
+                if metadata[field] is None:
+                    metadata[field] = value
+                else:
+                    print(f"Warning: duplicate metadata '{field}' in {filename}")
+
+                break # Stop looping over metadata labels if match is found and parse next paragraph
+    return metadata
+
+
+def get_missing_metadata(metadata):
+    """Return a list of missing metadata fields in a job posting document."""
+    return [
+        field for field in REQUIRED_FIELDS 
+        if not metadata[field]
+    ]
+
+
+
 total_files = 0  
 rejected_files = {}
 
@@ -95,41 +135,21 @@ for filename in os.listdir(DIR_PATH):
     doc = Document(doc_path)
     print(f'Processing file: {filename}')
 
-    
-    metadata = {field: None for field in OUTPUT_FIELDS}
 
     # --- EXTRACT JOB POSTING METADATA ---
-    for paragraph in doc.paragraphs:
-        text = paragraph.text.strip()
+    metadata = extract_metadata(doc, filename)
 
-        for label, field in LABELS_TO_FIELDS.items():
-            label_prefix = f'{label}:'
-
-            if text.startswith(label_prefix):
-                value = text.removeprefix(label_prefix).strip()
-
-                if metadata[field] is None:
-                    metadata[field] = value
-                else:
-                    print(f"Warning: duplicate metadata '{field}' in {filename}")
-
-                break # Stop looping over metadata labels if match is found and parse next paragraph
-    
-
-    # Reject file if required metadata is missing and skip skill extraction
-    missing_metadata = [
-        field for field in REQUIRED_FIELDS 
-        if not metadata[field]
-    ]            
+    # --- VALIDATE METADATA ---
+    missing_metadata = get_missing_metadata(metadata)
 
     if missing_metadata:        
         rejected_files[filename] = (
             f"Missing required metadata: {', '.join(missing_metadata)}"
         )
         print(f"Failed to process file due to missing metadata: {', '.join(missing_metadata)}")
-        continue # Skip skill extraction and proceed to next job posting
-    else:
-        all_jp_metadata_rows.append(metadata)
+        continue # Proceed to next job posting
+    
+    all_jp_metadata_rows.append(metadata)
 
 
     # Track extracted skills to prevent duplicates per job posting
