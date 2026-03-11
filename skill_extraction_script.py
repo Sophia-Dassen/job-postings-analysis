@@ -43,6 +43,11 @@ SKILL_OUTPUT_PATH = "extracted_skills.csv"
 all_jp_metadata_rows = []
 all_skill_rows = []
 
+# Helper structure mapping destination files to etracted rows 
+OUTPUT_FILE_ROWS = [
+    (JP_OUTPUT_PATH, all_jp_metadata_rows), 
+    (SKILL_OUTPUT_PATH, all_skill_rows)
+]
 
 # --- COLOR MAPPING ---
 COLOR_TO_SKILL = {
@@ -163,6 +168,47 @@ def extract_skills(doc, job_id):
     return skill_rows
 
 
+def log_extraction_summary(total_files, rejected_files, OUTPUT_FILE_ROWS):
+    """Print extraction run summary log with extraction metrics, exceptions, and outputs.
+
+    Args:
+        total_files (int): Counter of total job posting files
+        rejected_files (dict[str, str]): Mapping of rejected filename to rejection reason
+        OUTPUT_FILE_ROWS (list[tuple[str, list]]): Mapping of output file paths to extracted rows
+    """
+    successful_files = total_files - len(rejected_files)
+
+    total_skills = 0
+    for file, rows in OUTPUT_FILE_ROWS:
+        if file == SKILL_OUTPUT_PATH:
+            total_skills = len(rows)
+
+    DIVIDER = "-" * 50
+    
+    print("\n" + DIVIDER)
+    print("Extraction run summary")
+    print(f"Timestamp: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}")
+    print(DIVIDER)
+
+    print(f"Job postings processed : {successful_files} / {total_files}")
+    print(f"Skills extracted       : {total_skills}")
+    print(f"Rejected files         : {len(rejected_files)}")
+
+    if rejected_files:
+        print("\nRejected files:")
+        for file, reason in rejected_files.items():
+            print(f"- {file}")
+            print(f"  Reason: {reason}")
+    else:
+        print("\nNo rejected files.")
+
+    print("\nOutputs:")
+    for file, rows in OUTPUT_FILE_ROWS:
+        print(f"- {file} ({len(rows)} rows)")
+
+    print(DIVIDER)
+
+
 total_files = 0  
 rejected_files = {}
 
@@ -222,33 +268,8 @@ with open(SKILL_OUTPUT_PATH, mode="w", newline="", encoding="utf-8") as file:
 
 
 # --- FINAL EXTRACTION SUMMARY LOGGING ---
-DIVIDER = "-" * 50
-successful_files = total_files - len(rejected_files)
-UTC_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-OUTPUT_FILES = {
-    JP_OUTPUT_PATH: all_jp_metadata_rows, 
-    SKILL_OUTPUT_PATH: all_skill_rows
-}
-
-print("\n" + DIVIDER)
-print(f"Extraction run summary")
-print(f"Timestamp: {UTC_timestamp}")
-print(DIVIDER)
-
-print(f'Job postings processed : {successful_files} / {total_files}')
-print(f'Skills extracted       : {len(all_skill_rows)}')
-print(f'Rejected files         : {len(rejected_files)}')
-
-if rejected_files:
-    print('\nRejected files:')
-    for file, reason in rejected_files.items():
-        print(f'- {file}')
-        print(f'  Reason: {reason}')
-else:
-    print('\nNo rejected files.')
-
-print("\nOutputs:")
-for file, rows in OUTPUT_FILES.items():
-    print(f"- {file} ({len(rows)} rows)")
-
-print(DIVIDER)
+log_extraction_summary(
+    total_files, 
+    rejected_files, 
+    OUTPUT_FILE_ROWS
+)
