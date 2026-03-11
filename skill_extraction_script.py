@@ -118,6 +118,50 @@ def get_missing_metadata(metadata):
     ]
 
 
+def extract_skills(doc, job_id):
+    """Extract highlighted skill phrases from an annotated job posting (.docx) file.
+
+    Args:
+        doc (docx.document.Document): Document object representing the contents of a Word job posting file
+        job_id (str): Job ID metadata of the job posting document
+
+    Returns:
+        list[dict]: Each dictionary contains keys ("job_id", "extracted_skill", "observed_skill_type")
+    """
+
+    skill_rows = []
+    extracted_skills = set() # Track extracted skills to prevent duplicates per job posting
+
+    def add_skill_from_buffer(skill_buffer, observed_skill_type):
+        skill_text = skill_buffer.strip()
+        if skill_text and skill_text not in extracted_skills:
+            skill_rows.append({
+                "job_id": job_id, 
+                "extracted_skill": skill_text, 
+                "observed_skill_type": observed_skill_type
+            })
+            extracted_skills.add(skill_text)
+
+    for paragraph in doc.paragraphs:
+        skill_buffer = ""
+        observed_skill_type = None
+
+        for run in paragraph.runs:
+            # Collect contiguous highlighted text into skill buffer
+            if run.font.highlight_color is not None:
+                skill_buffer += run.text
+                observed_skill_type = COLOR_TO_SKILL.get(run.font.highlight_color, "invalid")
+            # Extract skill from buffer when highlighting stops
+            else: 
+                add_skill_from_buffer(skill_buffer, observed_skill_type)
+                skill_buffer = ""
+                observed_skill_type = None
+
+        # Extract skill from buffer if highlighting continues until the end of paragraph 
+        add_skill_from_buffer(skill_buffer, observed_skill_type)
+    
+    return skill_rows
+
 
 total_files = 0  
 rejected_files = {}
@@ -152,41 +196,9 @@ for filename in os.listdir(DIR_PATH):
     all_jp_metadata_rows.append(metadata)
 
 
-    # Track extracted skills to prevent duplicates per job posting
-    extracted_skills = set()
-
-
     # --- EXTRACT SKILLS ---
-    for paragraph in doc.paragraphs:
-        buffer = ""
-        observed_skill_type = None
-
-        for run in paragraph.runs:
-            if run.font.highlight_color is not None:
-                buffer += run.text
-                observed_skill_type = COLOR_TO_SKILL.get(run.font.highlight_color, "invalid")
-            else: 
-                skill_text = buffer.strip()
-                if skill_text and skill_text not in extracted_skills:
-                    all_skill_rows.append({
-                        "job_id": metadata["job_id"], 
-                        "extracted_skill": skill_text, 
-                        "observed_skill_type": observed_skill_type
-                    })
-                    extracted_skills.add(skill_text)
-                
-                buffer = ""
-                observed_skill_type = None
-
-        # flush at end of paragraph
-        skill_text = buffer.strip()
-        if skill_text and skill_text not in extracted_skills:
-            all_skill_rows.append({
-                "job_id": metadata["job_id"], 
-                "extracted_skill": skill_text, 
-                "observed_skill_type": observed_skill_type
-            })
-            extracted_skills.add(skill_text)
+    skills = extract_skills(doc, metadata["job_id"])
+    all_skill_rows.extend(skills)
 
 
 # --- WRITE JOB POSTING METADATA TO CSV ---
