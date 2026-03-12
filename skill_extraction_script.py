@@ -43,11 +43,7 @@ SKILL_OUTPUT_PATH = "extracted_skills.csv"
 all_jp_metadata_rows = []
 all_skill_rows = []
 
-# Helper structure mapping destination files to etracted rows 
-OUTPUT_FILE_ROWS = [
-    (JP_OUTPUT_PATH, all_jp_metadata_rows), 
-    (SKILL_OUTPUT_PATH, all_skill_rows)
-]
+
 
 # --- COLOR MAPPING ---
 COLOR_TO_SKILL = {
@@ -79,10 +75,22 @@ REQUIRED_FIELDS = {
     if f["mandatory"]
 }
 
-OUTPUT_FIELDS = [
+JP_OUTPUT_FIELDS = [
     f["output_field"] for f in METADATA_FIELDS
 ]
 
+SKILL_OUTPUT_FIELDS = [
+    "job_id", 
+    "extracted_skill", 
+    "observed_skill_type"
+]
+
+
+# Helper structure mapping destination files to etracted rows 
+OUTPUT_FILE_ROWS = [
+    (JP_OUTPUT_PATH, all_jp_metadata_rows), 
+    (SKILL_OUTPUT_PATH, all_skill_rows)
+]
 
 def extract_metadata(doc, filename):
     """Extract job posting metadata from a Word .docx file.
@@ -95,7 +103,7 @@ def extract_metadata(doc, filename):
         dict: Dictionary of output field (key) and extracted metadata (value) pairs
     """
     
-    metadata = {field: None for field in OUTPUT_FIELDS}
+    metadata = {field: None for field in JP_OUTPUT_FIELDS}
     
     for paragraph in doc.paragraphs:
         text = paragraph.text.strip()
@@ -209,6 +217,18 @@ def log_extraction_summary(total_files, rejected_files, OUTPUT_FILE_ROWS):
     print(DIVIDER)
 
 
+def write_csv(path: str, rows: list[dict], fieldnames: list[str]):
+    """Write a list of dictionaries to a CSV file."""
+    
+    with open(path, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(
+            file, 
+            fieldnames=fieldnames,
+            extrasaction="ignore"
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
 total_files = 0  
 rejected_files = {}
 
@@ -247,24 +267,9 @@ for filename in os.listdir(DIR_PATH):
     all_skill_rows.extend(skills)
 
 
-# --- WRITE JOB POSTING METADATA TO CSV ---
-with open(JP_OUTPUT_PATH, mode="w", newline="", encoding="utf-8") as file:
-    writer = csv.DictWriter(
-        file,
-        fieldnames=["job_id", "company", "job_title", "location", "source_platform", "original_url", "date_collected"]
-    )
-    writer.writeheader()
-    writer.writerows(all_jp_metadata_rows)
-
-
-# --- WRITE SKILLS TO CSV ---
-with open(SKILL_OUTPUT_PATH, mode="w", newline="", encoding="utf-8") as file:
-    writer = csv.DictWriter(
-        file,
-        fieldnames=["job_id", "extracted_skill", "observed_skill_type"]
-    )
-    writer.writeheader()
-    writer.writerows(all_skill_rows)
+# --- WRITE EXTRACTED ROWS TO CSV FILES ---
+write_csv(JP_OUTPUT_PATH, all_jp_metadata_rows, JP_OUTPUT_FIELDS)
+write_csv(SKILL_OUTPUT_PATH, all_skill_rows, SKILL_OUTPUT_FIELDS)
 
 
 # --- FINAL EXTRACTION SUMMARY LOGGING ---
