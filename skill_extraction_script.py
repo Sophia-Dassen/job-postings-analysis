@@ -222,9 +222,6 @@ def write_csv(path: str, rows: list[dict], fieldnames: list[str]):
 
 def main():
 
-    total_files = 0  
-    rejected_files = {}
-
     # Lists for extracted job posting metadata and extracted skills
     all_jp_metadata_rows = []
     all_skill_rows = []
@@ -235,13 +232,18 @@ def main():
         (SKILL_OUTPUT_PATH, all_skill_rows)
     ]
 
-    # Batch job posting processing 
-    for filename in os.listdir(DIR_PATH):
-    
-        if not filename.lower().endswith(".docx"):
-            continue # skip non-Word files
-        total_files += 1
+    # Process only Word documents in directory
+    job_posting_files = [
+        filename for filename in os.listdir(DIR_PATH)
+        if filename.lower().endswith(".docx")
+    ]
 
+    total_files = len(job_posting_files)
+    rejected_files = {}
+
+
+    # --- BATCH JOB POSTING PROCESSING --- 
+    for filename in job_posting_files:
         
         # --- OPEN DOCUMENT ---
         doc_path = os.path.join(DIR_PATH, filename)
