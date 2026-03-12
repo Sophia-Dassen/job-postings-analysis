@@ -29,6 +29,7 @@ from docx.enum.text import WD_COLOR
 import csv
 import os
 from datetime import datetime, timezone
+import sys
 
 
 # --- CONFIG ---
@@ -38,11 +39,6 @@ DIR_PATH = "2_Annotated_Job_Postings"
 # Output CSV files
 JP_OUTPUT_PATH = "extracted_job_posting_metadata.csv"
 SKILL_OUTPUT_PATH = "extracted_skills.csv"
-
-# Lists for extracted job posting metadata and extracted skills
-all_jp_metadata_rows = []
-all_skill_rows = []
-
 
 
 # --- COLOR MAPPING ---
@@ -85,12 +81,6 @@ SKILL_OUTPUT_FIELDS = [
     "observed_skill_type"
 ]
 
-
-# Helper structure mapping destination files to etracted rows 
-OUTPUT_FILE_ROWS = [
-    (JP_OUTPUT_PATH, all_jp_metadata_rows), 
-    (SKILL_OUTPUT_PATH, all_skill_rows)
-]
 
 def extract_metadata(doc, filename):
     """Extract job posting metadata from a Word .docx file.
@@ -229,52 +219,71 @@ def write_csv(path: str, rows: list[dict], fieldnames: list[str]):
         writer.writeheader()
         writer.writerows(rows)
 
-total_files = 0  
-rejected_files = {}
 
-# Batch job posting processing 
-for filename in os.listdir(DIR_PATH):
+def main():
+
+    total_files = 0  
+    rejected_files = {}
+
+    # Lists for extracted job posting metadata and extracted skills
+    all_jp_metadata_rows = []
+    all_skill_rows = []
+
+    # Helper structure mapping destination files to extracted rows 
+    OUTPUT_FILE_ROWS = [
+        (JP_OUTPUT_PATH, all_jp_metadata_rows), 
+        (SKILL_OUTPUT_PATH, all_skill_rows)
+    ]
+
+    # Batch job posting processing 
+    for filename in os.listdir(DIR_PATH):
     
-    if not filename.lower().endswith(".docx"):
-        continue # skip non-Word files
-    total_files += 1
+        if not filename.lower().endswith(".docx"):
+            continue # skip non-Word files
+        total_files += 1
+
+        
+        # --- OPEN DOCUMENT ---
+        doc_path = os.path.join(DIR_PATH, filename)
+        doc = Document(doc_path)
+        print(f'Processing file: {filename}')
 
 
-    # --- OPEN DOCUMENT ---
-    doc_path = os.path.join(DIR_PATH, filename)
-    doc = Document(doc_path)
-    print(f'Processing file: {filename}')
+        # --- EXTRACT JOB POSTING METADATA ---
+        metadata = extract_metadata(doc, filename)
+
+        # --- VALIDATE METADATA ---
+        missing_metadata = get_missing_metadata(metadata)
+
+        if missing_metadata:        
+            rejected_files[filename] = (
+                f"Missing required metadata: {', '.join(missing_metadata)}"
+            )
+            print(f"Failed to process file due to missing metadata: {', '.join(missing_metadata)}")
+            continue # Proceed to next job posting
+        
+        all_jp_metadata_rows.append(metadata)
 
 
-    # --- EXTRACT JOB POSTING METADATA ---
-    metadata = extract_metadata(doc, filename)
-
-    # --- VALIDATE METADATA ---
-    missing_metadata = get_missing_metadata(metadata)
-
-    if missing_metadata:        
-        rejected_files[filename] = (
-            f"Missing required metadata: {', '.join(missing_metadata)}"
-        )
-        print(f"Failed to process file due to missing metadata: {', '.join(missing_metadata)}")
-        continue # Proceed to next job posting
-    
-    all_jp_metadata_rows.append(metadata)
+        # --- EXTRACT SKILLS ---
+        skills = extract_skills(doc, metadata["job_id"])
+        all_skill_rows.extend(skills)
 
 
-    # --- EXTRACT SKILLS ---
-    skills = extract_skills(doc, metadata["job_id"])
-    all_skill_rows.extend(skills)
+    # --- WRITE EXTRACTED ROWS TO CSV FILES ---
+    write_csv(JP_OUTPUT_PATH, all_jp_metadata_rows, JP_OUTPUT_FIELDS)
+    write_csv(SKILL_OUTPUT_PATH, all_skill_rows, SKILL_OUTPUT_FIELDS)
 
 
-# --- WRITE EXTRACTED ROWS TO CSV FILES ---
-write_csv(JP_OUTPUT_PATH, all_jp_metadata_rows, JP_OUTPUT_FIELDS)
-write_csv(SKILL_OUTPUT_PATH, all_skill_rows, SKILL_OUTPUT_FIELDS)
+    # --- FINAL EXTRACTION SUMMARY LOGGING ---
+    log_extraction_summary(
+        total_files, 
+        rejected_files, 
+        OUTPUT_FILE_ROWS
+    )
+
+    return 0
 
 
-# --- FINAL EXTRACTION SUMMARY LOGGING ---
-log_extraction_summary(
-    total_files, 
-    rejected_files, 
-    OUTPUT_FILE_ROWS
-)
+if __name__ == "__main__":
+    sys.exit(main())
