@@ -2,7 +2,7 @@
 Extracts metadata and highlighted skill phrases from multiple annotated job postings.
 
 This script loops over a directory of annotated job posting (.docx) files, extracts 
-job posting metadata from the header, highlighted hard and soft skill phrases from 
+job posting metadata from the header, highlighted skill phrases (hard and soft) from 
 the job posting body, then writes the results to two separate CSV files.
 
 Input: 
@@ -24,15 +24,19 @@ Notes:
 """
 
 
-from docx import Document
-from docx.enum.text import WD_COLOR
 import csv
 import os
-from datetime import datetime, timezone
 import sys
+from datetime import datetime, timezone
+
+from docx import Document
+from docx.enum.text import WD_COLOR
 
 
-# --- CONFIG ---
+# ==============================
+# CONFIGURATION
+# ==============================
+
 # Path to the directory containing all annotated job postings
 DIR_PATH = "2_Annotated_Job_Postings"
 
@@ -41,16 +45,13 @@ JP_OUTPUT_PATH = "extracted_job_posting_metadata.csv"
 SKILL_OUTPUT_PATH = "extracted_skills.csv"
 
 
-# --- COLOR MAPPING ---
-COLOR_TO_SKILL = {
-    WD_COLOR.TURQUOISE: "hard",
-    WD_COLOR.PINK: "soft"
-}
+# ==============================
+# SCHEMA DEFINITIONS
+# ==============================
 
-# Schema used to extract and validate job posting metadata from source documents
-# Each entry maps a source label to an output field and specifies whether it is required.
-# --- METADATA FIELD DEFINITIONS ---
-METADATA_FIELDS = [
+# --- JOB POSTING METADATA SCHEMA ---
+# Schema for extracting and validating job posting metadata.
+JP_METADATA_FIELDS = [
     {"source_label": "Job ID", "output_field": "job_id", "mandatory": True},
     {"source_label": "Company", "output_field": "company", "mandatory": True},
     {"source_label": "Job Title", "output_field": "job_title", "mandatory": True},
@@ -60,27 +61,42 @@ METADATA_FIELDS = [
     {"source_label": "Date collected", "output_field": "date_collected", "mandatory": False}
 ]
 
+# --- SKILL EXTRACTION SCHEMA ---
+# Fields produced by the skill extraction process.
+SKILL_OUTPUT_FIELDS = [
+    "job_id", 
+    "extracted_skill", 
+    "observed_skill_type",
+]
 
-# --- HELPER STRUCTURES FOR METADATA LOOKUPS ---
-LABELS_TO_FIELDS = {
-    f["source_label"]: f["output_field"] for f in METADATA_FIELDS
+# Rules for mapping highlight colors in annotated documents to observed skill types.
+COLOR_TO_SKILL_TYPE = {
+    WD_COLOR.TURQUOISE: "hard",
+    WD_COLOR.PINK: "soft",
 }
 
-REQUIRED_FIELDS = {
-    f["output_field"] for f in METADATA_FIELDS
+
+# ==============================
+# HELPER STRUCTURES
+# ==============================
+
+JP_LABELS_TO_FIELDS = {
+    f["source_label"]: f["output_field"] for f in JP_METADATA_FIELDS
+}
+
+JP_REQUIRED_FIELDS = {
+    f["output_field"] for f in JP_METADATA_FIELDS
     if f["mandatory"]
 }
 
 JP_OUTPUT_FIELDS = [
-    f["output_field"] for f in METADATA_FIELDS
+    f["output_field"] for f in JP_METADATA_FIELDS
 ]
 
-SKILL_OUTPUT_FIELDS = [
-    "job_id", 
-    "extracted_skill", 
-    "observed_skill_type"
-]
 
+# ==============================
+# FUNCTIONS
+# ==============================
 
 def extract_metadata(doc, filename):
     """Extract job posting metadata from a Word .docx file.
@@ -98,7 +114,7 @@ def extract_metadata(doc, filename):
     for paragraph in doc.paragraphs:
         text = paragraph.text.strip()
 
-        for label, field in LABELS_TO_FIELDS.items():
+        for label, field in JP_LABELS_TO_FIELDS.items():
             label_prefix = f'{label}:'
 
             if text.startswith(label_prefix):
@@ -116,7 +132,7 @@ def extract_metadata(doc, filename):
 def get_missing_metadata(metadata):
     """Return a list of missing metadata fields in a job posting document."""
     return [
-        field for field in REQUIRED_FIELDS 
+        field for field in JP_REQUIRED_FIELDS 
         if not metadata[field]
     ]
 
@@ -153,7 +169,7 @@ def extract_skills(doc, job_id):
             # Collect contiguous highlighted text into skill buffer
             if run.font.highlight_color is not None:
                 skill_buffer += run.text
-                observed_skill_type = COLOR_TO_SKILL.get(run.font.highlight_color, "invalid")
+                observed_skill_type = COLOR_TO_SKILL_TYPE.get(run.font.highlight_color, "invalid")
             # Extract skill from buffer when highlighting stops
             else: 
                 add_skill_from_buffer(skill_buffer, observed_skill_type)
@@ -201,8 +217,8 @@ def log_extraction_summary(total_files, rejected_files, OUTPUT_FILE_ROWS):
         print("\nNo rejected files.")
 
     print("\nOutputs:")
-    for file, rows in OUTPUT_FILE_ROWS:
-        print(f"- {file} ({len(rows)} rows)")
+    for path, rows in OUTPUT_FILE_ROWS:
+        print(f"- {path} ({len(rows)} rows)")
 
     print(DIVIDER)
 
@@ -219,6 +235,10 @@ def write_csv(path: str, rows: list[dict], fieldnames: list[str]):
         writer.writeheader()
         writer.writerows(rows)
 
+
+# ==============================
+# PIPELINE EXECUTION
+# ==============================
 
 def main():
 
@@ -253,6 +273,7 @@ def main():
 
         # --- EXTRACT JOB POSTING METADATA ---
         metadata = extract_metadata(doc, filename)
+
 
         # --- VALIDATE METADATA ---
         missing_metadata = get_missing_metadata(metadata)
