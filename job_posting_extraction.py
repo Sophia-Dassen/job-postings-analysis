@@ -149,17 +149,17 @@ def extract_skills(doc, job_id):
     """
 
     skill_rows = []
-    extracted_skills = set() # Track extracted skills to prevent duplicates per job posting
+    extracted_skills = set() # Track extracted (skill_text, observed_skill_type) pairs to prevent duplicates
 
     def add_skill_from_buffer(skill_buffer, observed_skill_type):
         skill_text = skill_buffer.strip()
-        if skill_text and skill_text not in extracted_skills:
+        if skill_text and (skill_text, observed_skill_type) not in extracted_skills:
             skill_rows.append({
                 "job_id": job_id, 
                 "extracted_skill": skill_text, 
                 "observed_skill_type": observed_skill_type
             })
-            extracted_skills.add(skill_text)
+            extracted_skills.add((skill_text, observed_skill_type))
 
     for paragraph in doc.paragraphs:
         skill_buffer = ""
