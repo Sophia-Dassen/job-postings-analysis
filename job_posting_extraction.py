@@ -164,17 +164,37 @@ def extract_skills(doc, job_id):
     for paragraph in doc.paragraphs:
         skill_buffer = ""
         observed_skill_type = None
+        prev_highlight_color = None
 
         for run in paragraph.runs:
-            # Collect contiguous highlighted text into skill buffer
-            if run.font.highlight_color is not None:
-                skill_buffer += run.text
-                observed_skill_type = COLOR_TO_SKILL_TYPE.get(run.font.highlight_color, "invalid")
-            # Extract skill from buffer when highlighting stops
-            else: 
+
+            current_highlight_color = run.font.highlight_color
+            
+            # Highlighting stopped: extract skill from buffer
+            if (
+                current_highlight_color is None 
+                and prev_highlight_color is not None
+            ):
                 add_skill_from_buffer(skill_buffer, observed_skill_type)
                 skill_buffer = ""
                 observed_skill_type = None
+            
+            # Highlight color changed (e.g. turquoise to pink without separating whitespace): extract previous skill
+            elif (
+                current_highlight_color is not None
+                and prev_highlight_color is not None
+                and current_highlight_color != prev_highlight_color
+            ):
+                add_skill_from_buffer(skill_buffer, observed_skill_type)
+                skill_buffer = ""
+                observed_skill_type = None
+
+            # Collect highlighted text into buffer
+            if current_highlight_color is not None:
+                skill_buffer += run.text
+                observed_skill_type = COLOR_TO_SKILL_TYPE.get(current_highlight_color, "invalid")
+
+            prev_highlight_color = current_highlight_color
 
         # Extract skill from buffer if highlighting continues until the end of paragraph 
         add_skill_from_buffer(skill_buffer, observed_skill_type)
