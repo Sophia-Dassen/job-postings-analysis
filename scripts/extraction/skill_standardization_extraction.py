@@ -1,9 +1,9 @@
 import pandas as pd
 
 
-INPUT_PATH = "skill_interpretation.xlsx"
+INPUT_PATH = "data/raw/skill_interpretation.xlsx"
 INPUT_SHEET_NAME = "skill_standardization"
-OUTPUT_PATH = "extracted_skill_standardization.csv"
+OUTPUT_PATH = "data/extracted/extracted_skill_standardization.csv"
 
 df = pd.read_excel(
     INPUT_PATH, 
