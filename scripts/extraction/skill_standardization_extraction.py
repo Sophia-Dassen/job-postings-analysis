@@ -22,6 +22,9 @@ the fields:
 [standardized_skill, canonical_skill_type, skill_category, skill_subcategory]
 """
 
+
+import sys
+
 import pandas as pd
 
 
@@ -38,18 +41,28 @@ SKILL_TAXONOMY_FIELDS = [
     "skill_subcategory"
 ]
 
-df = pd.read_excel(
-    INPUT_PATH, 
-    sheet_name=INPUT_SHEET_NAME,
-    header=1
-)
+# --- PIPELINE EXECUTION ---
+def main():
+    
+    # Import Excel sheet containing the skill taxonomy table
+    df = pd.read_excel(
+        INPUT_PATH, 
+        sheet_name=INPUT_SHEET_NAME,
+        header=1
+    )
 
-df_filtered = df[SKILL_TAXONOMY_FIELDS]
+    # Keep only the columns of the skill taxonomy table
+    df_filtered = df[SKILL_TAXONOMY_FIELDS]
 
-df_filtered.to_csv(
-    OUTPUT_PATH,
-    index=False,
-    encoding="utf-8"
-)
+    # Write extracted rows to CSV 
+    df_filtered.to_csv(
+        OUTPUT_PATH,
+        index=False,
+        encoding="utf-8"
+    )
 
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
 
