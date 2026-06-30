@@ -25,12 +25,14 @@ the fields:
 
 import sys
 
+from openpyxl import load_workbook
+from openpyxl.utils import range_boundaries
 import pandas as pd
 
 
 INPUT_PATH = "data/raw/skill_interpretation.xlsx"
-INPUT_SHEET_NAME = "skill_standardization"
-OUTPUT_PATH = "data/extracted/extracted_skill_standardization.csv"
+INPUT_SHEET_NAME = "skill_taxonomy"
+OUTPUT_PATH = "data/extracted/extracted_skill_taxonomy.csv"
 
 # --- SKILL TAXONOMY SCHEMA ---
 # Fields defining the standardized skill taxonomy dataset.
@@ -44,22 +46,33 @@ SKILL_TAXONOMY_FIELDS = [
 # --- PIPELINE EXECUTION ---
 def main():
     
-    # Import Excel sheet containing the skill taxonomy table
-    df = pd.read_excel(
-        INPUT_PATH, 
-        sheet_name=INPUT_SHEET_NAME,
-        header=1
-    )
+    # Get the range reference of the SkillTaxonomy table
+    wb = load_workbook(INPUT_PATH, data_only=True)
+    ws = wb[INPUT_SHEET_NAME]
+    table = ws.tables["SkillTaxonomy"]
+    ref = table.ref
 
-    # Keep only the columns of the skill taxonomy table
-    df_filtered = df[SKILL_TAXONOMY_FIELDS]
+    # Extract the SkillTaxonomy table's data
+    min_col, min_row, max_col, max_row = range_boundaries(ref)
+
+    data = []
+
+    for row in ws.iter_rows(
+        min_row=min_row,
+        max_row=max_row,
+        min_col=min_col,
+        max_col=max_col,
+        values_only=True
+    ):
+        data.append(row)
+
+    headers = data[0]
+    rows = data[1:]
+
+    df = pd.DataFrame(rows, columns=headers)
 
     # Write extracted rows to CSV 
-    df_filtered.to_csv(
-        OUTPUT_PATH,
-        index=False,
-        encoding="utf-8"
-    )
+    df.to_csv(OUTPUT_PATH, index=False, encoding="utf-8")
 
     return 0
 
