@@ -16,6 +16,8 @@ Excel skill standardization pipeline workbook containing the following named Exc
   final standardizations, including row-level validation metadata
 - "SkillTaxonomy": standardized skills with a classification hierarchy of skill
   type, category, and subcategory, including row-level validation metadata
+- "SkillClassifications": approved skill type, category, and subcategory combinations 
+  used to validate the taxonomy
 
 Output
 ------
@@ -25,6 +27,8 @@ Output
 - CSV export of the SkillTaxonomy table with the fields:
   [standardized_skill, skill_type, skill_category, skill_subcategory, 
   valid_standardized_skill, valid_classification, error_message]
+- CSV export of the SkillClassifications table with the fields:
+  [skill_type, skill_category, skill_subcategory]
 """
 
 import warnings
@@ -71,6 +75,13 @@ SKILL_TAXONOMY_FIELDS = [
     "error_message"
 ]
 
+# Required fields of the skill classifications table.
+SKILL_CLASSIFICATION_FIELDS = [
+    "skill_type",
+    "skill_category",
+    "skill_subcategory"
+]
+
 
 # ==============================
 # CONFIGURATION
@@ -92,6 +103,13 @@ EXPORT_TABLES = (
         "output_path": "data/extracted/skill_taxonomy.csv",
         "expected_fields": SKILL_TAXONOMY_FIELDS,
         "ignored_helper_fields": ["cleaned_standardized_skill"]
+    },
+    {
+        "sheet_name": "skill_classification_lookup",
+        "table_name": "SkillClassifications",
+        "output_path": "data/extracted/skill_classifications.csv",
+        "expected_fields": SKILL_CLASSIFICATION_FIELDS,
+        "ignored_helper_fields": []
     },
 )
 
