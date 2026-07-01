@@ -1,2 +1,10 @@
 *.csv
-source_job_postings
+
+# Ignore all source job posting files
+data/source/source_job_postings/*
+!data/source/source_job_postings/.gitkeep
+
+# Ignore all annotated job posting files
+data/source/annotated_job_postings/*
+!data/source/annotated_job_postings/.gitkeep
+
