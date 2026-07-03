@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 
 from docx import Document
 from docx.enum.text import WD_COLOR
+from typing import Optional
 
 
 # ==============================
@@ -89,9 +90,16 @@ JP_REQUIRED_FIELDS = {
     if f["mandatory"]
 }
 
-JP_OUTPUT_FIELDS = [
-    f["output_field"] for f in JP_METADATA_FIELDS
+DERIVED_METADATA_FIELDS = [
+    "city",
+    "region",
+    "country",
 ]
+
+JP_OUTPUT_FIELDS = (
+    [f["output_field"] for f in JP_METADATA_FIELDS]
+    + DERIVED_METADATA_FIELDS
+)
 
 
 # ==============================
@@ -109,8 +117,8 @@ def extract_metadata(doc, filename):
         dict: Dictionary of output field (key) and extracted metadata (value) pairs
     """
     
-    metadata = {field: None for field in JP_OUTPUT_FIELDS}
-    
+    metadata: dict[str, Optional[str]] = {field: None for field in JP_OUTPUT_FIELDS}
+
     for paragraph in doc.paragraphs:
         text = paragraph.text.strip()
 
@@ -126,7 +134,48 @@ def extract_metadata(doc, filename):
                     print(f"Warning: duplicate metadata '{field}' in {filename}")
 
                 break # Stop looping over metadata labels if match is found and parse next paragraph
+    
+    # Parse location metadata
+    (
+        metadata["city"], 
+        metadata["region"], 
+        metadata["country"]
+    ) = parse_location(metadata["location"], filename)
+
     return metadata
+
+
+def parse_location(location, filename):
+    """Parse location string into city, region, and country components.
+
+    Supported location formats are:
+    - City, Country
+    - City, Region, Country
+    """
+    
+    city = None
+    region = None
+    country = None
+
+    if location is not None:
+        parts = [part.strip() for part in location.split(",")]
+
+        if len(parts) == 2:
+            city = parts[0]
+            country = parts[1]
+        
+        elif len(parts) == 3:
+            city = parts[0]
+            region = parts[1]
+            country = parts[2]
+        
+        else:
+            print(
+                f"Failed to parse location: "
+                f"'{location}' in {filename}"
+            )
+
+    return city, region, country
 
 
 def get_missing_metadata(metadata):
