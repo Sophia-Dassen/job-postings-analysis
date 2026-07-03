@@ -198,7 +198,10 @@ BEGIN TRY
 		location NVARCHAR(255),
 		source_platform NVARCHAR(255),
 		original_url NVARCHAR(1000),
-		date_collected DATE
+		date_collected DATE,
+		city NVARCHAR(255),
+		region NVARCHAR(255),
+		country NVARCHAR(255)
 	);
 
 	BULK INSERT staging.job_posting_metadata_import_temp
@@ -218,6 +221,9 @@ BEGIN TRY
 		company,
 		job_title,
 		location,
+		city,
+		region,
+		country,
 		source_platform,
 		original_url,
 		date_collected,
@@ -228,6 +234,9 @@ BEGIN TRY
 		company,
 		job_title,
 		location,
+		city,
+		region,
+		country,
 		source_platform,
 		original_url,
 		date_collected,
@@ -256,4 +265,3 @@ BEGIN CATCH
 END CATCH;
 
 GO
-
