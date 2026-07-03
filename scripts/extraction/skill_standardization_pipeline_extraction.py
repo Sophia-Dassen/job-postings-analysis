@@ -87,7 +87,7 @@ SKILL_CLASSIFICATION_FIELDS = [
 # CONFIGURATION
 # ==============================
 
-WORKBOOK_PATH = "data/raw/skill_standardization_pipeline.xlsx"
+WORKBOOK_PATH = "data/source/skill_standardization_pipeline.xlsx"
 
 EXPORT_TABLES = (
     {

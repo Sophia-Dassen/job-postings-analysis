@@ -38,7 +38,7 @@ from docx.enum.text import WD_COLOR
 # ==============================
 
 # Path to the directory containing all annotated job postings
-DIR_PATH = "data/raw/annotated_job_postings"
+DIR_PATH = "data/source/annotated_job_postings"
 
 # Output CSV files
 JP_OUTPUT_PATH = "data/extracted/extracted_job_posting_metadata.csv"
