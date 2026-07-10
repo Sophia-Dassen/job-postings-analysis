@@ -1,4 +1,4 @@
-USE JobPostingsAnalysis;
+USE JobPostingsAnalysis_Demo;
 GO
 
 CREATE SCHEMA core;

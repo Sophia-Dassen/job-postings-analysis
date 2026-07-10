@@ -39,11 +39,11 @@ from typing import Optional
 # ==============================
 
 # Path to the directory containing all annotated job postings
-DIR_PATH = "data/source/annotated_job_postings"
+DIR_PATH = "data/source_demo/annotated_job_postings_demo"
 
 # Output CSV files
-JP_OUTPUT_PATH = "data/extracted/extracted_job_posting_metadata.csv"
-SKILL_OUTPUT_PATH = "data/extracted/extracted_skills.csv"
+JP_OUTPUT_PATH = "data/extracted_demo/extracted_job_posting_metadata.csv"
+SKILL_OUTPUT_PATH = "data/extracted_demo/extracted_skills.csv"
 
 
 # ==============================

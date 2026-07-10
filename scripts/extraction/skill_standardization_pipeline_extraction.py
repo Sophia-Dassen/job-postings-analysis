@@ -93,21 +93,21 @@ EXPORT_TABLES = (
     {
         "sheet_name": "raw_to_prelim_mapping",
         "table_name": "RawSkillStandardization",
-        "output_path": "data/extracted/raw_to_standardized_skills.csv",
+        "output_path": "data/extracted_demo/raw_to_standardized_skills.csv",
         "expected_fields": RAW_SKILL_STANDARDIZATION_FIELDS,
         "ignored_helper_fields": []
     },
     {
         "sheet_name": "skill_taxonomy",
         "table_name": "SkillTaxonomy",
-        "output_path": "data/extracted/skill_taxonomy.csv",
+        "output_path": "data/extracted_demo/skill_taxonomy.csv",
         "expected_fields": SKILL_TAXONOMY_FIELDS,
         "ignored_helper_fields": ["cleaned_standardized_skill"]
     },
     {
         "sheet_name": "skill_classification_lookup",
         "table_name": "SkillClassifications",
-        "output_path": "data/extracted/skill_classifications.csv",
+        "output_path": "data/extracted_demo/skill_classifications.csv",
         "expected_fields": SKILL_CLASSIFICATION_FIELDS,
         "ignored_helper_fields": []
     },

@@ -1,4 +1,4 @@
-USE JobPostingsAnalysis;
+USE JobPostingsAnalysis_Demo;
 GO
 
 BEGIN TRY
@@ -28,7 +28,7 @@ BEGIN TRY
 	);
 
 	BULK INSERT staging.standardized_raw_skills_import_temp
-	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted\raw_to_standardized_skills.csv'
+	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted_demo\raw_to_standardized_skills.csv'
 	WITH (
 		FORMAT = 'CSV',
 		FIRSTROW = 2,
@@ -90,7 +90,7 @@ BEGIN TRY
 
 
 	BULK INSERT staging.skill_taxonomy_import_temp
-	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted\skill_taxonomy.csv'
+	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted_demo\skill_taxonomy.csv'
 	WITH (
 		FORMAT = 'CSV',
 		FIRSTROW = 2,
@@ -154,7 +154,7 @@ BEGIN TRY
 	);
 
 	BULK INSERT staging.skill_classifications_import_temp
-	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted\skill_classifications.csv'
+	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted_demo\skill_classifications.csv'
 	WITH (
 		FORMAT = 'CSV',
 		FIRSTROW = 2,
@@ -205,7 +205,7 @@ BEGIN TRY
 	);
 
 	BULK INSERT staging.job_posting_metadata_import_temp
-	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted\extracted_job_posting_metadata.csv'
+	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted_demo\extracted_job_posting_metadata.csv'
 	WITH (
 		FORMAT = 'CSV',
 		FIRSTROW = 2,
