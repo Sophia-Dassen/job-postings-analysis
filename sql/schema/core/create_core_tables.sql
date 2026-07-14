@@ -21,7 +21,7 @@ CREATE TABLE core.locations (
 
 CREATE TABLE core.job_postings (
 	job_posting_id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
-	job_code NVARCHAR(20) NOT NULL UNIQUE,
+	job_id NVARCHAR(20) NOT NULL UNIQUE,
 	job_title NVARCHAR(255) NOT NULL,
 	company_id INT NOT NULL FOREIGN KEY REFERENCES core.companies(company_id),
 	location_id INT NOT NULL FOREIGN KEY REFERENCES core.locations(location_id),
