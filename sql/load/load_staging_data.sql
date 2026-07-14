@@ -3,16 +3,21 @@ GO
 
 BEGIN TRY
 	
+	PRINT(CHAR(13))
+	RAISERROR ('====================================', 0, 1) WITH NOWAIT;
+	RAISERROR ('Load data into staging tables', 0, 1) WITH NOWAIT;
+	RAISERROR ('====================================', 0, 1) WITH NOWAIT;
+
 	BEGIN TRANSACTION;
 
 	DECLARE @load_run_id UNIQUEIDENTIFIER = NEWID();
-	PRINT 'Starting load: ' + CONVERT(NVARCHAR(36), @load_run_id);
+	PRINT CHAR(10) + CHAR(13) + 'Starting load: ' + CONVERT(NVARCHAR(36), @load_run_id);
 
 	/* ------------------------------------ */
 	/* LOAD STANDARDIZED RAW SKILLS DATASET */
 	/* ------------------------------------ */
 
-	PRINT CHAR(13) + 'Loading standardized raw skills dataset...';
+	PRINT CHAR(10) + CHAR(13) + 'Loading standardized raw skills dataset...';
 
 	DROP TABLE IF EXISTS staging.standardized_raw_skills_import_temp;
 
@@ -73,7 +78,7 @@ BEGIN TRY
 	/* LOAD SKILL TAXONOMY DATASET */
 	/* --------------------------- */
 
-	PRINT CHAR(13) + 'Loading skill taxonomy dataset...';
+	PRINT CHAR(10) + CHAR(13) + 'Loading skill taxonomy dataset...';
 
 	DROP TABLE IF EXISTS staging.skill_taxonomy_import_temp;
 
@@ -142,7 +147,7 @@ BEGIN TRY
 	/* LOAD SKILL CLASSIFICATIONS DATASET */
 	/* --------------------------------- */
 
-	PRINT CHAR(13) + 'Loading skill classifications dataset...';
+	PRINT CHAR(10) + CHAR(13) + 'Loading skill classifications dataset...';
 
 	DROP TABLE IF EXISTS staging.skill_classifications_import_temp;
 
@@ -186,7 +191,7 @@ BEGIN TRY
 	/* LOAD JOB POSTING METADATA DATASET */
 	/* --------------------------------- */
 
-	PRINT CHAR(13) + 'Loading job posting metadata dataset...';
+	PRINT CHAR(10) + CHAR(13) + 'Loading job posting metadata dataset...';
 
 	DROP TABLE IF EXISTS staging.job_posting_metadata_import_temp;
 
@@ -248,7 +253,7 @@ BEGIN TRY
 	
 	COMMIT TRANSACTION;
 
-	PRINT CHAR(13) + 
+	PRINT CHAR(13) + CHAR(10) +
 		'Successfully loaded all staging tables. Load ID: ' +
 		CONVERT(NVARCHAR(36), @load_run_id); 
 

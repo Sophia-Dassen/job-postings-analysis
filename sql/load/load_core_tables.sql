@@ -3,11 +3,18 @@ GO
 
 BEGIN TRY
 	
+	PRINT(CHAR(13))
+	RAISERROR ('====================================', 0, 1) WITH NOWAIT;
+	RAISERROR ('Load data into core tables', 0, 1) WITH NOWAIT;
+	RAISERROR ('====================================', 0, 1) WITH NOWAIT;
+
 	BEGIN TRANSACTION;
 
 	/* ================================= */
 	/* TRANSFORM COMPANY DIMENSION       */
 	/* ================================= */
+
+	PRINT CHAR(10) + CHAR(13) + 'Loading company dimension data...';
 
 	INSERT INTO core.companies (
 		company
@@ -23,6 +30,8 @@ BEGIN TRY
 	/* ================================= */
 	/* TRANSFORM LOCATION DIMENSION      */
 	/* ================================= */
+
+	PRINT CHAR(10) + CHAR(13) + 'Loading location dimension data...';
 
 	INSERT INTO core.locations (
 		city,
@@ -45,6 +54,8 @@ BEGIN TRY
 	/* ================================= */
 	/* TRANSFORM JOB POSTING DIMENSION   */
 	/* ================================= */
+
+	PRINT CHAR(10) + CHAR(13) + 'Loading job posting dimension data...';
 
 	INSERT INTO core.job_postings (
 		job_id,
@@ -80,6 +91,8 @@ BEGIN TRY
 	/* TRANSFORM SKILL CLASSIFICATION DIMENSION   */
 	/* ========================================== */
 
+	PRINT CHAR(10) + CHAR(13) + 'Loading skill classification dimension data...';
+
 	INSERT INTO core.skill_classifications (
 		skill_type,
 		skill_category,
@@ -102,6 +115,8 @@ BEGIN TRY
 	/* ======================================== */
 	/* TRANSFORM STANDARDIZED SKILL DIMENSION   */
 	/* ======================================== */
+
+	PRINT CHAR(10) + CHAR(13) + 'Loading standardized skill dimension data...';
 
 	INSERT INTO core.standardized_skills (
 		standardized_skill,
@@ -127,6 +142,8 @@ BEGIN TRY
 	/* ==================================== */
 	/* TRANSFORM SKILL MENTION FACT TABLE   */
 	/* ==================================== */
+
+	PRINT CHAR(10) + CHAR(13) + 'Loading skill mention fact table...';
 
 	INSERT INTO core.skill_mentions (
 		job_posting_id,
@@ -155,6 +172,9 @@ BEGIN TRY
 
 
 	COMMIT TRANSACTION;
+
+	PRINT CHAR(13) + CHAR(10) +
+		'Successfully loaded all core tables.'; 
 
 END TRY
 BEGIN CATCH

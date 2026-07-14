@@ -261,7 +261,7 @@ def main():
                 encoding="utf-8"
             )
 
-            print(f"Successfully extracted table: {export['table_name']}"
+            print(f"Successfully extracted into: {export['output_path']}"
                   f"\nRows extracted: {len(validated_table)}")
             
 
@@ -280,7 +280,7 @@ def main():
         except ValueError as e:
             print(e)
         
-        print('=' * 50)
+        print('-' * 50)
         
         
     summary = ExtractionSummary(
