@@ -1,8 +1,6 @@
 USE JobPostingsAnalysis_Demo;
 GO
 
-CREATE SCHEMA core;
-GO
 
 CREATE TABLE core.companies (
 	company_id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
