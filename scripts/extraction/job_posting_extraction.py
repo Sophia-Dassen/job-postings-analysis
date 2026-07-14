@@ -14,6 +14,7 @@ Output:
   [job_id, company, job_title, location, source_platform, original_url, date_collected]
 - CSV file containing extracted skill occurrences with the fields:
   [job_id, extracted_skill, observed_skill_type]
+- JSON file containing extraction run summary
 
 Notes:
 - Highlight color determines the observed skill classification (hard vs soft).
@@ -23,15 +24,16 @@ Notes:
   rejected and logged. 
 """
 
-
 import csv
+import json
 import os
 import sys
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from typing import Optional
 
 from docx import Document
 from docx.enum.text import WD_COLOR
-from typing import Optional
 
 
 # ==============================
@@ -44,6 +46,9 @@ DIR_PATH = "data/source_demo/annotated_job_postings_demo"
 # Output CSV files
 JP_OUTPUT_PATH = "data/extracted_demo/extracted_job_posting_metadata.csv"
 SKILL_OUTPUT_PATH = "data/extracted_demo/extracted_skills.csv"
+
+# Extraction summary JSON
+SUMMARY_OUTPUT_PATH = "data/extracted_demo/job_posting_extraction_summary.json"
 
 
 # ==============================
@@ -75,6 +80,18 @@ COLOR_TO_SKILL_TYPE = {
     WD_COLOR.TURQUOISE: "hard",
     WD_COLOR.PINK: "soft",
 }
+
+
+# ==============================
+# SUMMARY JSON OUTPUT
+# ==============================
+
+@dataclass
+class JobPostingExtractionSummary:
+    total_files: int
+    successful_files: int
+    rejected_files: int
+    skills_extracted: int
 
 
 # ==============================
@@ -373,6 +390,20 @@ def main():
         rejected_files, 
         OUTPUT_FILE_ROWS
     )
+
+    summary = JobPostingExtractionSummary(
+        total_files=total_files,
+        successful_files=len(all_jp_metadata_rows),
+        rejected_files=len(rejected_files),
+        skills_extracted=len(all_skill_rows),
+    )
+
+    with open(
+        SUMMARY_OUTPUT_PATH,
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(asdict(summary), file, indent=4)
 
     return 0
 

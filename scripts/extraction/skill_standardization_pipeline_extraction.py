@@ -29,10 +29,18 @@ Output
   valid_standardized_skill, valid_classification, error_message]
 - CSV export of the SkillClassifications table with the fields:
   [skill_type, skill_category, skill_subcategory]
+- JSON file containing extraction run summary
 """
 
-import warnings
+import json
 import sys
+import warnings
+from dataclasses import asdict, dataclass
+
+import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.utils import range_boundaries
+
 
 warnings.filterwarnings(
     "ignore",
@@ -43,10 +51,6 @@ warnings.filterwarnings(
     "ignore",
     message="Slicer List extension is not supported and will be removed"
 )
-
-from openpyxl import load_workbook
-from openpyxl.utils import range_boundaries
-import pandas as pd
 
 
 # ==============================
@@ -112,6 +116,22 @@ EXPORT_TABLES = (
         "ignored_helper_fields": []
     },
 )
+
+# Extraction summary JSON
+SUMMARY_OUTPUT_PATH = "data/extracted_demo/skill_standardization_extraction_summary.json"
+
+
+# ==============================
+# SUMMARY JSON OUTPUT
+# ==============================
+
+@dataclass
+class ExtractionSummary:
+    total_mappings: int
+    valid_mappings: int
+    invalid_mappings: int
+    skill_taxonomy_records: int
+    skill_classifications: int
 
 
 # ==============================
@@ -208,6 +228,12 @@ def main():
         
         return 1
 
+    total_mappings = 0
+    valid_mappings = 0
+    invalid_mappings = 0
+    skill_taxonomy_records = 0
+    skill_classifications = 0
+
     # Batch extract tables
     for export in EXPORT_TABLES:
         
@@ -237,12 +263,42 @@ def main():
 
             print(f"Successfully extracted table: {export['table_name']}"
                   f"\nRows extracted: {len(validated_table)}")
+            
+
+            if export['table_name'] == "RawSkillStandardization":
+                total_mappings = len(validated_table)
+                valid_mappings = len(validated_table[validated_table['valid_mapping'] == 1])
+                invalid_mappings = len(validated_table[validated_table['valid_mapping'] == 0])
+            
+            elif export['table_name'] == "SkillTaxonomy":
+                skill_taxonomy_records = len(validated_table)
+            
+            elif export['table_name'] == "SkillClassifications":
+                skill_classifications = len(validated_table)
+
 
         except ValueError as e:
             print(e)
         
         print('=' * 50)
+        
+        
+    summary = ExtractionSummary(
+        total_mappings=total_mappings,
+        valid_mappings=valid_mappings,
+        invalid_mappings=invalid_mappings,
+        skill_taxonomy_records=skill_taxonomy_records,
+        skill_classifications=skill_classifications
+    )
+
+    with open(
+        SUMMARY_OUTPUT_PATH,
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(asdict(summary), file, indent=4)
     
+
     return 0
 
 
