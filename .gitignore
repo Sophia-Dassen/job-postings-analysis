@@ -1,4 +1,6 @@
 *.csv
+extracted/
+extracted_demo/
 
 # Ignore all source job posting files
 data/source/source_job_postings/*
@@ -8,3 +10,5 @@ data/source/source_job_postings/*
 data/source/annotated_job_postings/*
 !data/source/annotated_job_postings/.gitkeep
 
+__pycache__/
+*.py[cod]
