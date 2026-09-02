@@ -21,6 +21,313 @@ BEGIN TRY
 
 
 	PRINT(CHAR(13))
+	RAISERROR ('=========================================', 0, 1) WITH NOWAIT;
+	RAISERROR ('Synchronize core with latest staging load', 0, 1) WITH NOWAIT;
+	RAISERROR ('=========================================', 0, 1) WITH NOWAIT;
+
+
+	/* ============================== */
+	/* Identify orphaned job postings */
+	/* ============================== */
+
+	-- Temporary table to store IDs of orphaned job postings
+	DROP TABLE IF EXISTS #orphaned_job_postings;
+	
+	CREATE TABLE #orphaned_job_postings (
+		job_posting_id INT PRIMARY KEY
+	);
+	
+	-- Identify orphaned job postings in core
+	WITH core_job_postings_joined AS 
+	(
+		SELECT 
+			job_posting_id,
+			job_id,
+			company,
+			job_title,
+			city,
+			region,
+			country,
+			source_platform,
+			original_URL,
+			date_collected
+		FROM core.job_postings AS j 
+		JOIN core.companies AS c
+			ON j.company_id = c.company_id
+		JOIN core.locations AS l
+			ON j.location_id = l.location_id
+	),
+	orphaned_job_postings AS 
+	(
+		SELECT * 
+		FROM core_job_postings_joined AS c 
+		WHERE NOT EXISTS (
+			SELECT 1 
+			FROM staging.job_posting_metadata AS s
+			WHERE s.job_id = c.job_id
+				AND s.company = c.company
+				AND s.job_title = c.job_title
+				AND s.city = c.city
+				AND ISNULL(s.region, '') = ISNULL(c.region, '') 
+				AND s.country = c.country
+				AND s.source_platform = c.source_platform
+				AND s.original_url = c.original_URL
+				AND s.date_collected = c.date_collected
+				AND s.load_run_id = @load_run_id	-- Latest staging load
+		)
+	)
+	INSERT INTO #orphaned_job_postings (job_posting_id)
+	SELECT job_posting_id
+	FROM orphaned_job_postings;
+
+
+	/* ================================== */
+	/* Identify stale standardized skills */
+	/* ================================== */
+
+	-- Temporary table to store IDs of stale standardized skills
+	DROP TABLE IF EXISTS #stale_standardized_skills;
+	
+	CREATE TABLE #stale_standardized_skills (
+		standardized_skill_id INT PRIMARY KEY
+	);
+
+	
+	-- Identify stale standardized skills in core
+	WITH core_standardized_skills_joined AS 
+	(
+		SELECT 
+			standardized_skill_id,
+			standardized_skill,
+			skill_type,
+			skill_category,
+			skill_subcategory
+		FROM core.standardized_skills AS s 
+		JOIN core.skill_classifications AS c
+			ON s.skill_classification_id = c.skill_classification_id
+	),
+	stale_standardized_skills AS 
+	(
+		SELECT * 
+		FROM core_standardized_skills_joined AS c 
+		WHERE NOT EXISTS (
+			SELECT 1 
+			FROM staging.skill_taxonomy AS s
+			WHERE 
+				s.standardized_skill = c.standardized_skill
+				AND s.skill_type = c.skill_type
+				AND ISNULL(s.skill_category, '') = ISNULL(c.skill_category, '')
+				AND ISNULL(s.skill_subcategory, '') = ISNULL(c.skill_subcategory, '')
+				AND s.load_run_id = @load_run_id	-- Latest staging load
+		)
+	)
+	INSERT INTO #stale_standardized_skills (standardized_skill_id)
+	SELECT standardized_skill_id
+	FROM stale_standardized_skills;
+
+	/* ==================================== */
+	/* Identify invalid standardized skills */
+	/* ==================================== */
+
+	-- Temporary table to store IDs of invalid standardized skills
+	DROP TABLE IF EXISTS #invalid_standardized_skills;
+	
+	CREATE TABLE #invalid_standardized_skills (
+		standardized_skill_id INT PRIMARY KEY
+	);
+
+	
+	-- Identify invalid standardized skills in core
+	WITH invalid_standardized_skills AS 
+	(
+		SELECT 
+			standardized_skill_id
+		FROM core.standardized_skills AS c 
+		JOIN staging.skill_taxonomy AS s
+			ON c.standardized_skill = s.standardized_skill
+		WHERE 
+			(
+				s.valid_standardized_skill = 0 
+				OR s.valid_classification = 0
+			)
+			AND s.load_run_id = @load_run_id	-- Latest staging load
+	)
+	INSERT INTO #invalid_standardized_skills (standardized_skill_id)
+	SELECT standardized_skill_id
+	FROM invalid_standardized_skills;
+
+
+	/* ========================== */
+	/* SYNCHRONIZE SKILL MENTIONS */
+	/* ========================== */
+
+	PRINT CHAR(10) + 'Synchronizing skill mentions...';
+	
+
+	-- Delete skill mentions belonging to orphaned job postings --
+	DELETE s 
+	FROM core.skill_mentions AS s
+	JOIN #orphaned_job_postings AS o
+		ON s.job_posting_id = o.job_posting_id;
+
+	PRINT '• Orphaned job postings:        ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	
+
+	-- Delete stale skill mentions --
+	DELETE m
+	FROM core.skill_mentions AS m
+	JOIN core.job_postings AS j
+		ON m.job_posting_id = j.job_posting_id
+	JOIN core.standardized_skills AS ss
+		ON m.standardized_skill_id = ss.standardized_skill_id
+	WHERE NOT EXISTS (
+		SELECT 1
+		FROM staging.standardized_raw_skills AS s
+		WHERE 
+			s.job_id = j.job_id
+			AND s.extracted_skill = m.extracted_skill 
+			AND s.observed_skill_type = m.observed_skill_type
+			AND s.standardized_skill = ss.standardized_skill
+			AND s.load_run_id = @load_run_id
+	);
+	
+	PRINT '• Stale skill mentions:         ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	
+
+	-- Delete skill mentions whose valid_mapping changed to FALSE --
+	DELETE m 
+	FROM core.skill_mentions AS m
+	JOIN core.job_postings AS j
+		ON m.job_posting_id = j.job_posting_id
+	JOIN staging.standardized_raw_skills AS s
+		ON j.job_id = s.job_id
+	WHERE m.extracted_skill = s.extracted_skill
+		AND m.observed_skill_type = s.observed_skill_type
+		AND @load_run_id = s.load_run_id
+		AND s.valid_mapping = 0;
+
+	PRINT '• Invalid skill mentions:       ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+
+
+	-- Delete skill mentions that reference stale standardized skills --
+	DELETE m 
+	FROM core.skill_mentions AS m
+	JOIN #stale_standardized_skills AS s
+		ON m.standardized_skill_id = s.standardized_skill_id;
+	
+	PRINT '• Stale standardized skills:    ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+
+
+	-- Delete skill mentions that reference invalid standardized skills --
+	DELETE m 
+	FROM core.skill_mentions AS m
+	JOIN #invalid_standardized_skills AS s
+		ON m.standardized_skill_id = s.standardized_skill_id;
+
+	PRINT '• Invalid standardized skills:  ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+
+
+	/* ======================== */
+	/* SYNCHRONIZE JOB POSTINGS */
+	/* ======================== */
+
+	PRINT CHAR(10) + CHAR(13) + 'Synchronizing job postings...';
+
+	-- Delete orphaned job postings --
+	DELETE j
+	FROM core.job_postings AS j
+	JOIN #orphaned_job_postings AS o
+		ON j.job_posting_id = o.job_posting_id;
+
+	PRINT '• Orphaned job postings:        ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+
+
+	/* ===================== */
+	/* SYNCHRONIZE COMPANIES */
+	/* ===================== */
+
+	PRINT CHAR(10) + CHAR(13) + 'Synchronizing companies...';
+
+	-- Delete orphaned companies
+	DELETE c
+	FROM core.companies AS c
+	WHERE NOT EXISTS (
+		SELECT 1 
+		FROM staging.job_posting_metadata AS s
+		WHERE s.company = c.company
+			AND s.load_run_id = @load_run_id	-- Latest staging load
+	);
+
+	
+	PRINT '• Orphaned companies:           ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+
+
+	/* ===================== */
+	/* SYNCHRONIZE LOCATIONS */
+	/* ===================== */
+
+	PRINT CHAR(10) + CHAR(13) + 'Synchronizing locations...';
+
+	-- Delete orphaned locations --
+	DELETE l 
+	FROM core.locations AS l
+	WHERE NOT EXISTS (
+		SELECT 1
+		FROM staging.job_posting_metadata AS s
+		WHERE s.city = l.city
+			AND ISNULL(s.region, '') = ISNULL(l.region, '')
+			AND s.country = l.country
+			AND s.load_run_id = @load_run_id	-- Latest staging load
+	);
+
+	PRINT '• Orphaned locations:           ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	
+
+	/* =============================== */
+	/* SYNCHRONIZE STANDARDIZED SKILLS */
+	/* =============================== */
+	
+	PRINT CHAR(10) + CHAR(13) + 'Synchronizing standardized skills...';
+
+	-- Delete stale standardized skills
+	DELETE c
+	FROM core.standardized_skills AS c
+	JOIN #stale_standardized_skills AS s
+		ON c.standardized_skill_id = s.standardized_skill_id;
+	
+	PRINT '• Stale standardized skills:    ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+
+
+	-- Delete invalid standardized skills (valid_standardized_skill or valid_classification = FALSE)
+	DELETE c
+	FROM core.standardized_skills AS c
+	JOIN #invalid_standardized_skills AS s
+		ON c.standardized_skill_id = s.standardized_skill_id;
+	
+	PRINT '• Invalid standardized skills:  ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	
+	/* ================================= */
+	/* SYNCHRONIZE SKILL CLASSIFICATIONS */
+	/* ================================= */
+
+	PRINT CHAR(10) + CHAR(13) + 'Synchronizing skill classifications...';
+
+	-- Delete orphaned skill classifications
+	DELETE c 
+	FROM core.skill_classifications AS c
+	WHERE NOT EXISTS (
+		SELECT 1
+		FROM staging.skill_classifications AS s
+		WHERE s.skill_type = c.skill_type
+			AND ISNULL(s.skill_category, '') = ISNULL(c.skill_category, '')
+			AND ISNULL(s.skill_subcategory, '') = ISNULL(c.skill_subcategory, '')
+			AND s.load_run_id = @load_run_id	-- Latest staging load
+	);
+
+	PRINT '• Orphaned classifications:     ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+
+
+	PRINT(CHAR(13))
 	RAISERROR ('==========================================', 0, 1) WITH NOWAIT;
 	RAISERROR ('Load data into core tables', 0, 1) WITH NOWAIT;
 	RAISERROR ('==========================================', 0, 1) WITH NOWAIT;
