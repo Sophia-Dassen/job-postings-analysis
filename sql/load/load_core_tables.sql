@@ -1,20 +1,34 @@
 USE JobPostingsAnalysis_Demo;
 GO
 
+SET NOCOUNT ON;
+
 BEGIN TRY
-	
-	PRINT(CHAR(13))
-	RAISERROR ('====================================', 0, 1) WITH NOWAIT;
-	RAISERROR ('Load data into core tables', 0, 1) WITH NOWAIT;
-	RAISERROR ('====================================', 0, 1) WITH NOWAIT;
 
 	BEGIN TRANSACTION;
 
-	/* ================================= */
-	/* TRANSFORM COMPANY DIMENSION       */
-	/* ================================= */
+	/* ============================ */
+	/* Identify latest staging load */
+	/* ============================ */
 
-	PRINT CHAR(10) + CHAR(13) + 'Loading company dimension data...';
+	DECLARE @load_run_id UNIQUEIDENTIFIER;
+
+	SELECT TOP 1 
+		@load_run_id = load_run_id 
+	FROM 
+		staging.job_posting_metadata
+	ORDER BY loaded_at DESC;
+
+
+	PRINT(CHAR(13))
+	RAISERROR ('==========================================', 0, 1) WITH NOWAIT;
+	RAISERROR ('Load data into core tables', 0, 1) WITH NOWAIT;
+	RAISERROR ('==========================================', 0, 1) WITH NOWAIT;
+
+
+	/* ======================== */
+	/* LOAD COMPANIES TABLE     */
+	/* ======================== */
 
 	INSERT INTO core.companies (
 		company
@@ -24,14 +38,15 @@ BEGIN TRY
 	FROM staging.job_posting_metadata AS s
 	LEFT JOIN core.companies AS c
 		ON s.company = c.company
-	WHERE c.company_id IS NULL;
+	WHERE c.company_id IS NULL
+		AND s.load_run_id = @load_run_id;
 
+	PRINT CHAR(10) + 'Companies:                      ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' inserted';
+	
 
-	/* ================================= */
-	/* TRANSFORM LOCATION DIMENSION      */
-	/* ================================= */
-
-	PRINT CHAR(10) + CHAR(13) + 'Loading location dimension data...';
+	/* ========================== */
+	/* LOAD LOCATIONS TABLE       */
+	/* ========================== */
 
 	INSERT INTO core.locations (
 		city,
@@ -48,14 +63,15 @@ BEGIN TRY
 		AND ISNULL(s.region, '') = ISNULL(l.region, '') 
 		AND s.country = l.country
 	WHERE 
-		l.location_id IS NULL;
+		l.location_id IS NULL
+		AND s.load_run_id = @load_run_id;
+
+	PRINT CHAR(10) + 'Locations:                      ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' inserted';
 
 
-	/* ================================= */
-	/* TRANSFORM JOB POSTING DIMENSION   */
-	/* ================================= */
-
-	PRINT CHAR(10) + CHAR(13) + 'Loading job posting dimension data...';
+	/* ============================= */
+	/* LOAD JOB POSTINGS TABLE        */
+	/* ============================= */
 
 	INSERT INTO core.job_postings (
 		job_id,
@@ -84,14 +100,15 @@ BEGIN TRY
 	LEFT JOIN core.job_postings AS j
 		ON s.job_id = j.job_id
 	WHERE
-		j.job_posting_id IS NULL;
+		j.job_posting_id IS NULL
+		AND s.load_run_id = @load_run_id;
+
+	PRINT CHAR(10) + 'Job postings:                   ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' inserted';
 
 
-	/* ========================================== */
-	/* TRANSFORM SKILL CLASSIFICATION DIMENSION   */
-	/* ========================================== */
-
-	PRINT CHAR(10) + CHAR(13) + 'Loading skill classification dimension data...';
+	/* ======================================= */
+	/* LOAD SKILL CLASSIFICATIONS TABLE        */
+	/* ======================================= */
 
 	INSERT INTO core.skill_classifications (
 		skill_type,
@@ -109,14 +126,16 @@ BEGIN TRY
 		AND ISNULL(s.skill_category, '') = ISNULL(c.skill_category, '')
 		AND ISNULL(s.skill_subcategory, '') = ISNULL(c.skill_subcategory, '')
 	WHERE
-		c.skill_classification_id IS NULL;
+		c.skill_classification_id IS NULL
+		AND s.load_run_id = @load_run_id;
+
+	
+	PRINT CHAR(10) + 'Skill classifications:          ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' inserted';
 
 
-	/* ======================================== */
-	/* TRANSFORM STANDARDIZED SKILL DIMENSION   */
-	/* ======================================== */
-
-	PRINT CHAR(10) + CHAR(13) + 'Loading standardized skill dimension data...';
+	/* ===================================== */
+	/* LOAD STANDARDIZED SKILLS TABLE        */
+	/* ===================================== */
 
 	INSERT INTO core.standardized_skills (
 		standardized_skill,
@@ -136,14 +155,16 @@ BEGIN TRY
 	WHERE 
 		t.valid_standardized_skill = 1 
 		AND t.valid_classification = 1
-		AND s.standardized_skill_id IS NULL;
+		AND s.standardized_skill_id IS NULL
+		AND t.load_run_id = @load_run_id;
 
 
-	/* ==================================== */
-	/* TRANSFORM SKILL MENTION FACT TABLE   */
-	/* ==================================== */
+	PRINT CHAR(10) + 'Standardized skills:            ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' inserted';
 
-	PRINT CHAR(10) + CHAR(13) + 'Loading skill mention fact table...';
+
+	/* ================================= */
+	/* LOAD SKILL MENTIONS TABLE         */
+	/* ================================= */
 
 	INSERT INTO core.skill_mentions (
 		job_posting_id,
@@ -168,18 +189,26 @@ BEGIN TRY
 		AND r.observed_skill_type = c.observed_skill_type
 	WHERE 
 		r.valid_mapping = 1
-		AND c.job_posting_id IS NULL;
+		AND c.job_posting_id IS NULL
+		AND r.load_run_id = @load_run_id;
+
+	PRINT CHAR(10) + 'Skill mentions:                 ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' inserted';
 
 
 	COMMIT TRANSACTION;
 
-	PRINT CHAR(13) + CHAR(10) +
-		'Successfully loaded all core tables.'; 
+	PRINT(CHAR(13))
+	PRINT '==========================================';
+	PRINT 'Successfully loaded all core tables.';
+	PRINT 'Load run ID: ' + CHAR(13) +
+		  CAST(@load_run_id AS VARCHAR(36));
+	PRINT '==========================================';
+
 
 END TRY
 BEGIN CATCH
 	
-	PRINT 'Transform/load failed. Rolling back transaction.';
+	PRINT 'Load failed. Rolling back transaction.';
 
 	IF @@TRANCOUNT > 0
 		ROLLBACK TRANSACTION;
