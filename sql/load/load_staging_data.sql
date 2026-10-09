@@ -1,5 +1,3 @@
-USE JobPostingsAnalysis_Demo;
-GO
 
 BEGIN TRY
 	

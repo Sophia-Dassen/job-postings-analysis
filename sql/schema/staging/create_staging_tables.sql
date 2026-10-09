@@ -1,6 +1,3 @@
-USE JobPostingsAnalysis_Demo;
-GO
-
 
 CREATE TABLE staging.standardized_raw_skills (
 	standardized_raw_skill_id INT IDENTITY(1,1) PRIMARY KEY,

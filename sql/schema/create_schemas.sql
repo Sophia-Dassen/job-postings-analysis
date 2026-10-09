@@ -1,6 +1,3 @@
-USE JobPostingsAnalysis_Demo;
-GO
-
 
 CREATE SCHEMA staging;
 GO

@@ -1,6 +1,3 @@
-USE JobPostingsAnalysis_Demo;
-GO
-
 SET NOCOUNT ON;
 
 BEGIN TRY
