@@ -183,7 +183,6 @@ BEGIN TRY
 		WHERE 
 			s.job_id = j.job_id
 			AND s.extracted_skill = m.extracted_skill 
-			AND s.observed_skill_type = m.observed_skill_type
 			AND s.standardized_skill = ss.standardized_skill
 			AND s.load_run_id = @load_run_id
 	);
@@ -191,17 +190,42 @@ BEGIN TRY
 	PRINT '• Stale skill mentions:         ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 	
 
-	-- Delete skill mentions whose valid_mapping changed to FALSE --
+	-- Delete skill mentions whose mappings have become invalid --
 	DELETE m 
 	FROM core.skill_mentions AS m
 	JOIN core.job_postings AS j
 		ON m.job_posting_id = j.job_posting_id
-	JOIN staging.standardized_raw_skills AS s
-		ON j.job_id = s.job_id
-	WHERE m.extracted_skill = s.extracted_skill
-		AND m.observed_skill_type = s.observed_skill_type
-		AND @load_run_id = s.load_run_id
-		AND s.valid_mapping = 0;
+	JOIN core.standardized_skills AS ss
+		ON m.standardized_skill_id = ss.standardized_skill_id
+	WHERE EXISTS (
+		SELECT 1 
+		FROM staging.standardized_raw_skills AS s
+		WHERE s.job_id = j.job_id 
+			AND s.extracted_skill = m.extracted_skill
+			AND s.standardized_skill = ss.standardized_skill 
+			AND s.load_run_id = @load_run_id
+			AND s.valid_mapping = 0
+	)
+	-- Edge case defense:
+	-- The same skill phrase in a job posting could be extracted both as a hard and a soft skill, 
+	-- while being mapped to the same standardized skill. These mappings converge into a single core 
+	-- record, as the unique key (job_id, extracted_skill, standardized_skill) does not include 
+	-- observed_skill_type. If one mapping becomes invalid but the other remains valid, the core record 
+	-- must be preserved.
+	-- Example:
+	-- job_id, extracted_skill, observed_skill_type, standardized_skill, valid_mapping
+	-- JP_10, Excel, soft, Microsoft Excel, 0 
+	-- JP_10, Excel, hard, Microsoft Excel, 1 
+	-- Result: "JP_10, Excel, Microsoft Excel" is preserved in core.
+	AND NOT EXISTS (
+		SELECT 1 
+		FROM staging.standardized_raw_skills AS s
+		WHERE s.job_id = j.job_id 
+			AND s.extracted_skill = m.extracted_skill
+			AND s.standardized_skill = ss.standardized_skill 
+			AND s.load_run_id = @load_run_id
+			AND s.valid_mapping = 1 
+	);
 
 	PRINT '• Invalid skill mentions:       ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
@@ -473,13 +497,11 @@ BEGIN TRY
 	INSERT INTO core.skill_mentions (
 		job_posting_id,
 		extracted_skill,
-		observed_skill_type,
 		standardized_skill_id
 	)
 	SELECT DISTINCT
 		j.job_posting_id,
 		r.extracted_skill,
-		r.observed_skill_type,
 		s.standardized_skill_id
 	FROM
 		staging.standardized_raw_skills AS r
@@ -490,10 +512,10 @@ BEGIN TRY
 	LEFT JOIN core.skill_mentions AS c
 		ON j.job_posting_id = c.job_posting_id 
 		AND r.extracted_skill = c.extracted_skill
-		AND r.observed_skill_type = c.observed_skill_type
+		AND s.standardized_skill_id = c.standardized_skill_id
 	WHERE 
 		r.valid_mapping = 1
-		AND c.job_posting_id IS NULL
+		AND c.skill_mention_id IS NULL
 		AND r.load_run_id = @load_run_id;
 
 	PRINT CHAR(10) + 'Skill mentions:                 ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' inserted';

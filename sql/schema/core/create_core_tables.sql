@@ -53,10 +53,9 @@ CREATE TABLE core.skill_mentions (
 	skill_mention_id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
 	job_posting_id INT NOT NULL FOREIGN KEY REFERENCES core.job_postings(job_posting_id),
 	extracted_skill NVARCHAR(255) NOT NULL,
-	observed_skill_type NVARCHAR(20) NOT NULL,
-	standardized_skill_id INT FOREIGN KEY REFERENCES core.standardized_skills(standardized_skill_id),
+	standardized_skill_id INT NOT NULL FOREIGN KEY REFERENCES core.standardized_skills(standardized_skill_id),
 	created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-	CONSTRAINT uq_skill_extraction UNIQUE (job_posting_id, extracted_skill, observed_skill_type)
+	CONSTRAINT uq_skill_extraction UNIQUE (job_posting_id, extracted_skill, standardized_skill_id)
 );
 
 GO
