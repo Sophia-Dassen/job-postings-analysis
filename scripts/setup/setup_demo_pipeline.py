@@ -26,6 +26,7 @@ Output
 """
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -114,17 +115,21 @@ def setup_database() -> None:
  
     SERVER_NAME = r"localhost\SQLEXPRESS"
 
+    env = os.environ.copy()
+    env["PROJECT_ROOT"] = PROJECT_ROOT.as_posix()
+
     subprocess.run(
         [
             "sqlcmd",
             "-S",
             SERVER_NAME,
             "-E",
-            "-i",
-            "setup_demo_database.sql",
+            "-b",
+            "-i", "setup_demo_database.sql",
         ],
         check=True,
         cwd=SQL_DIR,
+        env=env,
     )
 
     

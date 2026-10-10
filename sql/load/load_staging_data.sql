@@ -31,7 +31,7 @@ BEGIN TRY
 	);
 
 	BULK INSERT staging.standardized_raw_skills_import_temp
-	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted_demo\raw_to_standardized_skills.csv'
+	FROM '$(PROJECT_ROOT)/data/extracted_demo/raw_to_standardized_skills.csv'
 	WITH (
 		FORMAT = 'CSV',
 		FIRSTROW = 2,
@@ -93,7 +93,7 @@ BEGIN TRY
 
 
 	BULK INSERT staging.skill_taxonomy_import_temp
-	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted_demo\skill_taxonomy.csv'
+	FROM '$(PROJECT_ROOT)/data/extracted_demo/skill_taxonomy.csv'
 	WITH (
 		FORMAT = 'CSV',
 		FIRSTROW = 2,
@@ -157,7 +157,7 @@ BEGIN TRY
 	);
 
 	BULK INSERT staging.skill_classifications_import_temp
-	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted_demo\skill_classifications.csv'
+	FROM '$(PROJECT_ROOT)/data/extracted_demo/skill_classifications.csv'
 	WITH (
 		FORMAT = 'CSV',
 		FIRSTROW = 2,
@@ -208,7 +208,7 @@ BEGIN TRY
 	);
 
 	BULK INSERT staging.job_posting_metadata_import_temp
-	FROM 'C:\Users\Sophia\OneDrive\Job_Postings_Analysis\data\extracted_demo\extracted_job_posting_metadata.csv'
+	FROM '$(PROJECT_ROOT)/data/extracted_demo/extracted_job_posting_metadata.csv'
 	WITH (
 		FORMAT = 'CSV',
 		FIRSTROW = 2,
