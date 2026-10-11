@@ -80,7 +80,7 @@ SKILL_STANDARD_WB_EXTRACTION_SUMMARY = (
 
 
 def print_step(message: str) -> None:
-    print(f"\n=== {message} ===")
+    print(f"\n=== {message} ===\n")
 
 
 def check_sqlcmd() -> None:
@@ -248,6 +248,8 @@ def main() -> None:
     # PIPELINE SUMMARY LOGGING
     # ==========================================
 
+    print(f"\n{50 * '-'}")
+    
     print("\n[OK] Demo setup completed successfully.")
 
     print(f"\n{50 * '='}")

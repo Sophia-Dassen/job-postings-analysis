@@ -1,21 +1,22 @@
+SET NOCOUNT ON;
 
 BEGIN TRY
-	
-	PRINT(CHAR(13))
-	RAISERROR ('====================================', 0, 1) WITH NOWAIT;
-	RAISERROR ('Load data into staging tables', 0, 1) WITH NOWAIT;
-	RAISERROR ('====================================', 0, 1) WITH NOWAIT;
 
 	BEGIN TRANSACTION;
 
 	DECLARE @load_run_id UNIQUEIDENTIFIER = NEWID();
-	PRINT CHAR(10) + CHAR(13) + 'Starting load: ' + CONVERT(NVARCHAR(36), @load_run_id);
+
+	PRINT(CHAR(13))
+	PRINT '=================================================';
+	PRINT 'Loading data into staging tables';
+	PRINT 'Load run: ' +
+		  CAST(@load_run_id AS VARCHAR(36));
+	PRINT '=================================================';
+
 
 	/* ------------------------------------ */
 	/* LOAD STANDARDIZED RAW SKILLS DATASET */
 	/* ------------------------------------ */
-
-	PRINT CHAR(10) + CHAR(13) + 'Loading standardized raw skills dataset...';
 
 	DROP TABLE IF EXISTS staging.standardized_raw_skills_import_temp;
 
@@ -40,7 +41,7 @@ BEGIN TRY
 		CODEPAGE = '65001'
 	);
 
-	-- Load temporary table data into staging table
+	-- Load data from temporary table into staging table
 	INSERT INTO staging.standardized_raw_skills(
 		job_id,
 		extracted_skill,
@@ -68,6 +69,11 @@ BEGIN TRY
 		@load_run_id
 	FROM staging.standardized_raw_skills_import_temp;
 
+
+	PRINT 'Standardized raw skills dataset:  ' + 
+		  CAST(@@ROWCOUNT AS VARCHAR(20)) + ' rows loaded';
+
+
 	-- Drop temporary import table
 	DROP TABLE IF EXISTS staging.standardized_raw_skills_import_temp;
 
@@ -75,8 +81,6 @@ BEGIN TRY
 	/* --------------------------- */
 	/* LOAD SKILL TAXONOMY DATASET */
 	/* --------------------------- */
-
-	PRINT CHAR(10) + CHAR(13) + 'Loading skill taxonomy dataset...';
 
 	DROP TABLE IF EXISTS staging.skill_taxonomy_import_temp;
 
@@ -103,7 +107,7 @@ BEGIN TRY
 	);
 
 
-	-- Load temporary table data into staging table
+	-- Load data from temporary table into staging table
 	INSERT INTO staging.skill_taxonomy(
 		standardized_skill,
 		skill_type,
@@ -137,6 +141,11 @@ BEGIN TRY
 		@load_run_id
 	FROM staging.skill_taxonomy_import_temp;
 
+
+	PRINT 'Skill taxonomy dataset:           ' + 
+		  CAST(@@ROWCOUNT AS VARCHAR(20)) + ' rows loaded';
+
+
 	-- Drop temporary import table
 	DROP TABLE IF EXISTS staging.skill_taxonomy_import_temp;
 
@@ -144,8 +153,6 @@ BEGIN TRY
 	/* --------------------------------- */
 	/* LOAD SKILL CLASSIFICATIONS DATASET */
 	/* --------------------------------- */
-
-	PRINT CHAR(10) + CHAR(13) + 'Loading skill classifications dataset...';
 
 	DROP TABLE IF EXISTS staging.skill_classifications_import_temp;
 
@@ -167,7 +174,7 @@ BEGIN TRY
 	);
 
 
-	-- Load temporary table data into staging table
+	-- Load data from temporary table into staging table
 	INSERT INTO staging.skill_classifications(
 		skill_type,
 		skill_category,
@@ -180,6 +187,11 @@ BEGIN TRY
 		skill_subcategory,
 		@load_run_id
 	FROM staging.skill_classifications_import_temp;
+	
+
+	PRINT 'Skill classifications dataset:    ' + 
+		  CAST(@@ROWCOUNT AS VARCHAR(20)) + ' rows loaded';
+
 
 	-- Drop temporary import table
 	DROP TABLE IF EXISTS staging.skill_classifications_import_temp;
@@ -188,8 +200,6 @@ BEGIN TRY
 	/* --------------------------------- */
 	/* LOAD JOB POSTING METADATA DATASET */
 	/* --------------------------------- */
-
-	PRINT CHAR(10) + CHAR(13) + 'Loading job posting metadata dataset...';
 
 	DROP TABLE IF EXISTS staging.job_posting_metadata_import_temp;
 
@@ -218,7 +228,7 @@ BEGIN TRY
 	);
 
 
-	-- Load temporary table data into staging table
+	-- Load data from temporary table into staging table
 	INSERT INTO staging.job_posting_metadata(
 		job_id,
 		company,
@@ -246,14 +256,19 @@ BEGIN TRY
 		@load_run_id
 	FROM staging.job_posting_metadata_import_temp;
 
+
+	PRINT CHAR(10) + 'Job posting metadata dataset:     ' + 
+	      CAST(@@ROWCOUNT AS VARCHAR(20)) + ' rows loaded';
+
+
 	-- Drop temporary import table
 	DROP TABLE IF EXISTS staging.job_posting_metadata_import_temp;
-	
+
+
 	COMMIT TRANSACTION;
 
 	PRINT CHAR(13) + CHAR(10) +
-		'Successfully loaded all staging tables. Load ID: ' +
-		CONVERT(NVARCHAR(36), @load_run_id); 
+		'[OK] Successfully loaded all staging tables.'
 
 END TRY
 BEGIN CATCH

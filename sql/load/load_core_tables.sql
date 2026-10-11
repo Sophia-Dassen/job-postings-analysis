@@ -167,7 +167,7 @@ BEGIN TRY
 	JOIN #orphaned_job_postings AS o
 		ON s.job_posting_id = o.job_posting_id;
 
-	PRINT '• Orphaned job postings:        ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Orphaned job postings:        ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 	
 
 	-- Delete stale skill mentions --
@@ -187,7 +187,7 @@ BEGIN TRY
 			AND s.load_run_id = @load_run_id
 	);
 	
-	PRINT '• Stale skill mentions:         ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Stale skill mentions:         ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 	
 
 	-- Delete skill mentions whose mappings have become invalid --
@@ -227,7 +227,7 @@ BEGIN TRY
 			AND s.valid_mapping = 1 
 	);
 
-	PRINT '• Invalid skill mentions:       ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Invalid skill mentions:       ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	-- Delete skill mentions that reference stale standardized skills --
@@ -236,7 +236,7 @@ BEGIN TRY
 	JOIN #stale_standardized_skills AS s
 		ON m.standardized_skill_id = s.standardized_skill_id;
 	
-	PRINT '• Stale standardized skills:    ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Stale standardized skills:    ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	-- Delete skill mentions that reference invalid standardized skills --
@@ -245,7 +245,7 @@ BEGIN TRY
 	JOIN #invalid_standardized_skills AS s
 		ON m.standardized_skill_id = s.standardized_skill_id;
 
-	PRINT '• Invalid standardized skills:  ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Invalid standardized skills:  ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	/* ======================== */
@@ -260,7 +260,7 @@ BEGIN TRY
 	JOIN #orphaned_job_postings AS o
 		ON j.job_posting_id = o.job_posting_id;
 
-	PRINT '• Orphaned job postings:        ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Orphaned job postings:        ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	/* ===================== */
@@ -280,7 +280,7 @@ BEGIN TRY
 	);
 
 	
-	PRINT '• Orphaned companies:           ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Orphaned companies:           ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	/* ===================== */
@@ -301,7 +301,7 @@ BEGIN TRY
 			AND s.load_run_id = @load_run_id	-- Latest staging load
 	);
 
-	PRINT '• Orphaned locations:           ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Orphaned locations:           ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 	
 
 	/* =============================== */
@@ -316,7 +316,7 @@ BEGIN TRY
 	JOIN #stale_standardized_skills AS s
 		ON c.standardized_skill_id = s.standardized_skill_id;
 	
-	PRINT '• Stale standardized skills:    ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Stale standardized skills:    ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	-- Delete invalid standardized skills (valid_standardized_skill or valid_classification = FALSE)
@@ -325,7 +325,7 @@ BEGIN TRY
 	JOIN #invalid_standardized_skills AS s
 		ON c.standardized_skill_id = s.standardized_skill_id;
 	
-	PRINT '• Invalid standardized skills:  ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Invalid standardized skills:  ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 	
 	/* ================================= */
 	/* SYNCHRONIZE SKILL CLASSIFICATIONS */
@@ -345,7 +345,7 @@ BEGIN TRY
 			AND s.load_run_id = @load_run_id	-- Latest staging load
 	);
 
-	PRINT '• Orphaned classifications:     ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Orphaned classifications:     ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	PRINT(CHAR(13))
@@ -523,12 +523,10 @@ BEGIN TRY
 
 	COMMIT TRANSACTION;
 
-	PRINT(CHAR(13))
-	PRINT '==========================================';
-	PRINT 'Successfully loaded all core tables.';
-	PRINT 'Load run ID: ' + CHAR(13) +
-		  CAST(@load_run_id AS VARCHAR(36));
-	PRINT '==========================================';
+
+	PRINT CHAR(13) + CHAR(10) +
+		'[OK] Successfully loaded all core tables.'
+	PRINT 'Load run ID: ' + CAST(@load_run_id AS VARCHAR(36));
 
 
 END TRY

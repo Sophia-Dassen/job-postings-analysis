@@ -219,8 +219,7 @@ def main():
             WORKBOOK_PATH, 
             data_only=True
         )
-        print(f"\nSuccessfully loaded workbook: {WORKBOOK_PATH}")
-        print('=' * 50)
+        print(f"Successfully loaded workbook: {WORKBOOK_PATH}")
 
     except Exception as e:
         print(f"\nFailed to load workbook: {WORKBOOK_PATH}"
@@ -279,8 +278,6 @@ def main():
 
         except ValueError as e:
             print(e)
-        
-        print('-' * 50)
         
         
     summary = ExtractionSummary(
