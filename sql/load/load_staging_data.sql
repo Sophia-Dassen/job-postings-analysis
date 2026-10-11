@@ -14,6 +14,74 @@ BEGIN TRY
 	PRINT '=================================================';
 
 
+	/* --------------------------------- */
+	/* LOAD JOB POSTING METADATA DATASET */
+	/* --------------------------------- */
+
+	DROP TABLE IF EXISTS staging.job_posting_metadata_import_temp;
+
+	-- Temporary table for importing the job posting metadata dataset
+	CREATE TABLE staging.job_posting_metadata_import_temp (
+		job_id NVARCHAR(255),
+		company NVARCHAR(255),
+		job_title NVARCHAR(255),
+		location NVARCHAR(255),
+		source_platform NVARCHAR(255),
+		original_url NVARCHAR(1000),
+		date_collected DATE,
+		city NVARCHAR(255),
+		region NVARCHAR(255),
+		country NVARCHAR(255)
+	);
+
+	BULK INSERT staging.job_posting_metadata_import_temp
+	FROM '$(PROJECT_ROOT)/data/extracted_demo/extracted_job_posting_metadata.csv'
+	WITH (
+		FORMAT = 'CSV',
+		FIRSTROW = 2,
+		FIELDTERMINATOR = ',',
+		ROWTERMINATOR = '\n',
+		CODEPAGE = '65001'
+	);
+
+
+	-- Load data from temporary table into staging table
+	INSERT INTO staging.job_posting_metadata(
+		job_id,
+		company,
+		job_title,
+		location,
+		city,
+		region,
+		country,
+		source_platform,
+		original_url,
+		date_collected,
+		load_run_id
+	) 
+	SELECT
+		job_id,
+		company,
+		job_title,
+		location,
+		city,
+		region,
+		country,
+		source_platform,
+		original_url,
+		date_collected,
+		@load_run_id
+	FROM staging.job_posting_metadata_import_temp;
+
+
+	PRINT CHAR(10) + 'Job posting metadata dataset:     ' + 
+	      CAST(@@ROWCOUNT AS VARCHAR(20)) + ' rows loaded';
+
+
+	-- Drop temporary import table
+	DROP TABLE IF EXISTS staging.job_posting_metadata_import_temp;
+
+
 	/* ------------------------------------ */
 	/* LOAD STANDARDIZED RAW SKILLS DATASET */
 	/* ------------------------------------ */
@@ -195,74 +263,6 @@ BEGIN TRY
 
 	-- Drop temporary import table
 	DROP TABLE IF EXISTS staging.skill_classifications_import_temp;
-
-
-	/* --------------------------------- */
-	/* LOAD JOB POSTING METADATA DATASET */
-	/* --------------------------------- */
-
-	DROP TABLE IF EXISTS staging.job_posting_metadata_import_temp;
-
-	-- Temporary table for importing the job posting metadata dataset
-	CREATE TABLE staging.job_posting_metadata_import_temp (
-		job_id NVARCHAR(255),
-		company NVARCHAR(255),
-		job_title NVARCHAR(255),
-		location NVARCHAR(255),
-		source_platform NVARCHAR(255),
-		original_url NVARCHAR(1000),
-		date_collected DATE,
-		city NVARCHAR(255),
-		region NVARCHAR(255),
-		country NVARCHAR(255)
-	);
-
-	BULK INSERT staging.job_posting_metadata_import_temp
-	FROM '$(PROJECT_ROOT)/data/extracted_demo/extracted_job_posting_metadata.csv'
-	WITH (
-		FORMAT = 'CSV',
-		FIRSTROW = 2,
-		FIELDTERMINATOR = ',',
-		ROWTERMINATOR = '\n',
-		CODEPAGE = '65001'
-	);
-
-
-	-- Load data from temporary table into staging table
-	INSERT INTO staging.job_posting_metadata(
-		job_id,
-		company,
-		job_title,
-		location,
-		city,
-		region,
-		country,
-		source_platform,
-		original_url,
-		date_collected,
-		load_run_id
-	) 
-	SELECT
-		job_id,
-		company,
-		job_title,
-		location,
-		city,
-		region,
-		country,
-		source_platform,
-		original_url,
-		date_collected,
-		@load_run_id
-	FROM staging.job_posting_metadata_import_temp;
-
-
-	PRINT CHAR(10) + 'Job posting metadata dataset:     ' + 
-	      CAST(@@ROWCOUNT AS VARCHAR(20)) + ' rows loaded';
-
-
-	-- Drop temporary import table
-	DROP TABLE IF EXISTS staging.job_posting_metadata_import_temp;
 
 
 	COMMIT TRANSACTION;
