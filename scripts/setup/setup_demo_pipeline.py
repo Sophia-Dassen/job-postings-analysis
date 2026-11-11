@@ -42,6 +42,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 SQL_DIR = PROJECT_ROOT / "sql"
 
+# SQL Server configuration
+SQL_SERVER = os.getenv(
+    "SQL_SERVER",
+    r"localhost\SQLEXPRESS",
+).strip() or r"localhost\SQLEXPRESS"
+
+# ODBC driver configuration
+SQL_ODBC_DRIVER = os.getenv(
+    "SQL_ODBC_DRIVER",
+    "ODBC Driver 17 for SQL Server",
+).strip() or "ODBC Driver 17 for SQL Server"
+
 JOB_POSTING_EXTRACTION_SCRIPT = (
     PROJECT_ROOT
     / "scripts"
@@ -113,16 +125,13 @@ def run_workbook_extraction() -> None:
 
 def setup_database() -> None:
  
-    SERVER_NAME = r"localhost\SQLEXPRESS"
-
     env = os.environ.copy()
     env["PROJECT_ROOT"] = PROJECT_ROOT.as_posix()
 
     subprocess.run(
         [
             "sqlcmd",
-            "-S",
-            SERVER_NAME,
+            "-S", SQL_SERVER,
             "-E",
             "-b",
             "-i", "setup_demo_database.sql",
@@ -205,8 +214,8 @@ def main() -> None:
     setup_database()
 
     with pyodbc.connect(
-        "Driver={ODBC Driver 17 for SQL Server};"
-        "Server=localhost\\SQLEXPRESS;"
+        f"Driver={{{SQL_ODBC_DRIVER}}};"
+        f"Server={SQL_SERVER};"
         "Database=JobPostingsAnalysis_Demo;"
         "Trusted_Connection=yes;"
     ) as connection:
