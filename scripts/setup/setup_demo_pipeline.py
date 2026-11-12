@@ -33,6 +33,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pwinput
 import pyodbc
 
 from scripts.excel.refresh_workbook import refresh_workbook
@@ -47,6 +48,10 @@ SQL_SERVER = os.getenv(
     "SQL_SERVER",
     r"localhost\SQLEXPRESS",
 ).strip() or r"localhost\SQLEXPRESS"
+
+# SQL Server authentication configuration
+SQL_AUTH_MODE = os.getenv("SQL_AUTH_MODE", "trusted").strip().lower()
+SQL_USERNAME = os.getenv("SQL_USERNAME", "").strip()
 
 # ODBC driver configuration
 SQL_ODBC_DRIVER = os.getenv(
@@ -123,23 +128,140 @@ def run_workbook_extraction() -> None:
     )
 
 
-def setup_database() -> None:
- 
+def validate_sql_credentials(
+    username: str,
+    password: str
+) -> None:
+
+    connection_string = (
+        f"Driver={{{SQL_ODBC_DRIVER}}};"
+        f"Server={SQL_SERVER};"
+        "Database=master;"
+        f"UID={username};"
+        f"PWD={password};"
+    )
+
+    with pyodbc.connect(connection_string, timeout=5):
+        pass
+
+
+def get_sql_credentials() -> tuple[str | None, str | None]:
+
+    if SQL_AUTH_MODE == "trusted":
+        return None, None
+
+    if SQL_AUTH_MODE == "sql":
+
+        if not SQL_USERNAME:
+            raise ValueError(
+                "SQL_USERNAME must be configured when using SQL authentication."
+            )
+
+        while True:
+
+            password = pwinput.pwinput(
+                prompt="Enter your SQL Server password: ",
+                mask="*"
+            )
+
+            if not password:
+                print("Password cannot be empty. Please try again.")
+                continue
+
+            try:
+                validate_sql_credentials(SQL_USERNAME, password)
+
+            except pyodbc.Error as error:
+
+                error_details = " ".join(str(arg) for arg in error.args)
+
+                if "18456" in error_details or "28000" in error_details:
+                    print(
+                        "\nAuthentication failed. "
+                        "Please check your password and try again.\n"
+                    )
+                    continue
+
+                raise
+
+            print("\nAuthentication successful.\n")
+            
+            return SQL_USERNAME, password
+
+    raise ValueError(
+        f"Unsupported SQL_AUTH_MODE: {SQL_AUTH_MODE!r}. "
+        "Choose 'trusted' or 'sql'."
+    )
+
+
+def setup_database(
+    username: str | None = None,
+    password: str | None = None,
+) -> None:
+
     env = os.environ.copy()
     env["PROJECT_ROOT"] = PROJECT_ROOT.as_posix()
 
+    command = [
+        "sqlcmd",
+        "-S", SQL_SERVER,
+        "-b",
+        "-i", "setup_demo_database.sql",
+    ]
+
+    if SQL_AUTH_MODE == "trusted":
+        command.append("-E")
+
+    elif SQL_AUTH_MODE == "sql":
+
+        if not username or not password:
+            raise ValueError(
+                "Username and password are required "
+                "when using SQL Server Authentication."
+            )
+
+        command.extend(["-U", username])
+        env["SQLCMDPASSWORD"] = password
+
+    else:
+        raise ValueError(
+            f"Unsupported SQL authentication mode: {SQL_AUTH_MODE}"
+        )
+
     subprocess.run(
-        [
-            "sqlcmd",
-            "-S", SQL_SERVER,
-            "-E",
-            "-b",
-            "-i", "setup_demo_database.sql",
-        ],
+        command,
         check=True,
         cwd=SQL_DIR,
         env=env,
     )
+
+
+def get_connection_string(
+    username: str | None = None,
+    password: str | None = None,
+) -> str:
+
+    connection_string = (
+        f"Driver={{{SQL_ODBC_DRIVER}}};"
+        f"Server={SQL_SERVER};"
+        "Database=JobPostingsAnalysis_Demo;"
+    )
+
+    if SQL_AUTH_MODE == "trusted":
+        connection_string += "Trusted_Connection=yes;"
+
+    elif SQL_AUTH_MODE == "sql":
+        connection_string += (
+            f"UID={username};"
+            f"PWD={password};"
+        )
+
+    else:
+        raise ValueError(
+            f"Unsupported SQL authentication mode: {SQL_AUTH_MODE}"
+        )
+
+    return connection_string
 
     
 def fetch_scalar(cursor, query) -> int:
@@ -211,14 +333,14 @@ def main() -> None:
     # =======================================
 
     print_step("[4/4] Creating and loading demo database...")
-    setup_database()
 
-    with pyodbc.connect(
-        f"Driver={{{SQL_ODBC_DRIVER}}};"
-        f"Server={SQL_SERVER};"
-        "Database=JobPostingsAnalysis_Demo;"
-        "Trusted_Connection=yes;"
-    ) as connection:
+    username, password = get_sql_credentials()
+    
+    setup_database(username, password)
+
+    connection_string = get_connection_string(username, password)
+
+    with pyodbc.connect(connection_string) as connection:
         cursor = connection.cursor()
 
     
