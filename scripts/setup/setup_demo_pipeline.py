@@ -439,39 +439,43 @@ def main() -> None:
 
     connection_string = get_connection_string(username, password)
 
-    with pyodbc.connect(connection_string) as connection:
+    connection = pyodbc.connect(connection_string)
+        
+    try:
         cursor = connection.cursor()
-
     
-    core_job_postings = fetch_scalar(
-        cursor, 
-        """SELECT COUNT(*) FROM core.job_postings;"""
-    )
+        core_job_postings = fetch_scalar(
+            cursor,
+            """SELECT COUNT(*) FROM core.job_postings;"""
+        )
 
-    core_companies = fetch_scalar(
-        cursor,
-        """SELECT COUNT(*) FROM core.companies;"""
-    )
+        core_companies = fetch_scalar(
+            cursor,
+            """SELECT COUNT(*) FROM core.companies;"""
+        )
 
-    core_locations = fetch_scalar(
-        cursor,
-        """SELECT COUNT(*) FROM core.locations;"""
-    )
+        core_locations = fetch_scalar(
+            cursor,
+            """SELECT COUNT(*) FROM core.locations;"""
+        )
 
-    core_skill_mentions = fetch_scalar(
-        cursor,
-        """SELECT COUNT(*) FROM core.skill_mentions;"""
-    )
+        core_skill_mentions = fetch_scalar(
+            cursor,
+            """SELECT COUNT(*) FROM core.skill_mentions;"""
+        )
 
-    core_standardized_skills = fetch_scalar(
-        cursor,
-        """SELECT COUNT(*) FROM core.standardized_skills;"""
-    )
+        core_standardized_skills = fetch_scalar(
+            cursor,
+            """SELECT COUNT(*) FROM core.standardized_skills;"""
+        )
 
-    core_skill_classifications = fetch_scalar(
-        cursor,
-        """SELECT COUNT(*) FROM core.skill_classifications;"""
-    )
+        core_skill_classifications = fetch_scalar(
+            cursor,
+            """SELECT COUNT(*) FROM core.skill_classifications;"""
+        )
+
+    finally:
+        connection.close()
 
 
     # ==========================================
