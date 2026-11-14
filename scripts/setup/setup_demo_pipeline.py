@@ -33,10 +33,18 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
 import pwinput
 import pyodbc
+from openpyxl import load_workbook
 
-from scripts.excel.refresh_workbook import refresh_workbook
+from scripts.extraction.job_posting_extraction import SKILL_OUTPUT_PATH
+from scripts.extraction.skill_standardization_pipeline_extraction import (
+    RAW_SKILLS_IMPORT_TABLE,
+    WORKBOOK_PATH,
+    extract_excel_table,
+    validate_table_fields,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -117,6 +125,64 @@ def run_job_posting_extraction() -> None:
         check=True,
         cwd=PROJECT_ROOT,
     )
+
+
+def is_workbook_up_to_date() -> bool:
+
+    while True:
+        try:
+            # Load workbook
+            workbook = load_workbook(
+                WORKBOOK_PATH,
+                data_only=True
+            )
+            break
+
+        except PermissionError:
+            print("Failed to access the workbook.\n"
+                  "Please ensure Excel is closed and try again.")
+            input("\nPress Enter to continue. ")
+            print() 
+            continue
+
+
+    try:
+        excel_table = extract_excel_table(
+            workbook,
+            sheet_name=RAW_SKILLS_IMPORT_TABLE["sheet_name"],
+            table_name=RAW_SKILLS_IMPORT_TABLE["table_name"]
+        )
+
+        validated_table = validate_table_fields(
+            extracted_table=excel_table,
+            expected_fields=RAW_SKILLS_IMPORT_TABLE["expected_fields"],
+            ignored_helper_fields=RAW_SKILLS_IMPORT_TABLE["ignored_helper_fields"]
+        )
+
+    finally:
+        workbook.close()
+
+    sort_columns = [
+        "job_id",
+        "extracted_skill",
+        "observed_skill_type"
+    ]
+
+    sorted_table = (
+        validated_table
+        .sort_values(by=sort_columns)
+        .reset_index(drop=True)
+    )
+
+    exported_skills_csv = pd.read_csv(SKILL_OUTPUT_PATH, header=0)
+    
+    sorted_csv = (
+        exported_skills_csv
+        .sort_values(by=sort_columns)
+        .reset_index(drop=True)
+    )
+
+    return sorted_table.equals(sorted_csv)
 
 
 def run_workbook_extraction() -> None:
@@ -303,9 +369,42 @@ def main() -> None:
     # ==========================================
     # REFRESH SKILL STANDARDIZATION WORKBOOK
     # ==========================================
+    
+    print_step("[2/4] Verifying that Excel workbook data is up-to-date...")
 
-    print_step("[2/4] Refreshing skill standardization pipeline workbook...")
-    refresh_workbook(SKILL_STANDARD_WB_PATH)
+    if is_workbook_up_to_date():
+        print("Workbook is up-to-date.\n"
+              "Resuming pipeline setup...")
+
+    else:
+        print("Workbook is not up-to-date; manual refresh needed.\n")
+        print("Please follow the instructions below:")
+        print(f"1/ Open the Excel workbook {WORKBOOK_PATH}.")
+        print("2/ Refresh all queries and connections to get the latest data.")
+        print("3/ Save workbook and close Excel.")
+
+        while True:
+            input('\nPress Enter to continue. ')
+
+            print("\nVerifying that Excel workbook data is up-to-date...\n")
+
+            try:
+                if is_workbook_up_to_date():
+                    print("Workbook is up-to-date.\n"
+                          "Resuming pipeline setup...")
+                    break
+
+                print(
+                    "Workbook is still not up-to-date.\n"
+                    "Please refresh all queries and connections, "
+                    "save the workbook, and close Excel."
+                )
+
+            except PermissionError:
+          
+                print("Failed to access the workbook.\n"
+                      "Please ensure Excel is closed and try again.")
+                continue
 
 
     # =================================================

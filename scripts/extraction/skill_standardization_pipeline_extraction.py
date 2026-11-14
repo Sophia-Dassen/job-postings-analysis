@@ -117,6 +117,13 @@ EXPORT_TABLES = (
     },
 )
 
+RAW_SKILLS_IMPORT_TABLE = {
+    "sheet_name": "raw_skills",
+    "table_name": "raw_skills_import",
+    "expected_fields": ["job_id", "extracted_skill", "observed_skill_type"],
+    "ignored_helper_fields": []
+}
+
 # Extraction summary JSON
 SUMMARY_OUTPUT_PATH = "data/extracted_demo/skill_standardization_extraction_summary.json"
 
