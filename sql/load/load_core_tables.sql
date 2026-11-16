@@ -24,17 +24,17 @@ BEGIN TRY
 
 
 	/* ============================== */
-	/* Identify orphaned job postings */
+	/* Identify stale job postings */
 	/* ============================== */
 
-	-- Temporary table to store IDs of orphaned job postings
-	DROP TABLE IF EXISTS #orphaned_job_postings;
+	-- Temporary table to store IDs of stale job postings
+	DROP TABLE IF EXISTS #stale_job_postings;
 	
-	CREATE TABLE #orphaned_job_postings (
+	CREATE TABLE #stale_job_postings (
 		job_posting_id INT PRIMARY KEY
 	);
 	
-	-- Identify orphaned job postings in core
+	-- Identify stale job postings in core
 	WITH core_job_postings_joined AS 
 	(
 		SELECT 
@@ -54,7 +54,7 @@ BEGIN TRY
 		JOIN core.locations AS l
 			ON j.location_id = l.location_id
 	),
-	orphaned_job_postings AS 
+	stale_job_postings AS 
 	(
 		SELECT * 
 		FROM core_job_postings_joined AS c 
@@ -73,9 +73,9 @@ BEGIN TRY
 				AND s.load_run_id = @load_run_id	-- Latest staging load
 		)
 	)
-	INSERT INTO #orphaned_job_postings (job_posting_id)
+	INSERT INTO #stale_job_postings (job_posting_id)
 	SELECT job_posting_id
-	FROM orphaned_job_postings;
+	FROM stale_job_postings;
 
 
 	/* ================================== */
@@ -161,14 +161,32 @@ BEGIN TRY
 	PRINT CHAR(10) + 'Synchronizing skill mentions...';
 	
 
-	-- Delete skill mentions belonging to orphaned job postings --
+	-- Delete skill mentions linked to stale job postings --
 	DELETE s 
 	FROM core.skill_mentions AS s
-	JOIN #orphaned_job_postings AS o
-		ON s.job_posting_id = o.job_posting_id;
+	JOIN #stale_job_postings AS st
+		ON s.job_posting_id = st.job_posting_id;
 
-	PRINT '- Orphaned job postings:        ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Skill mentions linked to stale job postings:           ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 	
+
+	-- Delete skill mentions that reference stale standardized skills --
+	DELETE m 
+	FROM core.skill_mentions AS m
+	JOIN #stale_standardized_skills AS s
+		ON m.standardized_skill_id = s.standardized_skill_id;
+	
+	PRINT '- Skill mentions linked to stale standardized skills:    ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+
+
+	-- Delete skill mentions that reference invalid standardized skills --
+	DELETE m 
+	FROM core.skill_mentions AS m
+	JOIN #invalid_standardized_skills AS s
+		ON m.standardized_skill_id = s.standardized_skill_id;
+
+	PRINT '- Skill mentions linked to invalid standardized skills:  ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+
 
 	-- Delete stale skill mentions --
 	DELETE m
@@ -187,7 +205,7 @@ BEGIN TRY
 			AND s.load_run_id = @load_run_id
 	);
 	
-	PRINT '- Stale skill mentions:         ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Stale skill mentions:                                  ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 	
 
 	-- Delete skill mentions whose mappings have become invalid --
@@ -227,49 +245,31 @@ BEGIN TRY
 			AND s.valid_mapping = 1 
 	);
 
-	PRINT '- Invalid skill mentions:       ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
-
-
-	-- Delete skill mentions that reference stale standardized skills --
-	DELETE m 
-	FROM core.skill_mentions AS m
-	JOIN #stale_standardized_skills AS s
-		ON m.standardized_skill_id = s.standardized_skill_id;
-	
-	PRINT '- Stale standardized skills:    ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
-
-
-	-- Delete skill mentions that reference invalid standardized skills --
-	DELETE m 
-	FROM core.skill_mentions AS m
-	JOIN #invalid_standardized_skills AS s
-		ON m.standardized_skill_id = s.standardized_skill_id;
-
-	PRINT '- Invalid standardized skills:  ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Invalid skill mentions:                                ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	/* ======================== */
 	/* SYNCHRONIZE JOB POSTINGS */
 	/* ======================== */
 
-	PRINT CHAR(10) + CHAR(13) + 'Synchronizing job postings...';
+	PRINT CHAR(10) + 'Synchronizing job postings...';
 
-	-- Delete orphaned job postings --
+	-- Delete stale job postings --
 	DELETE j
 	FROM core.job_postings AS j
-	JOIN #orphaned_job_postings AS o
-		ON j.job_posting_id = o.job_posting_id;
+	JOIN #stale_job_postings AS st
+		ON j.job_posting_id = st.job_posting_id;
 
-	PRINT '- Orphaned job postings:        ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Stale job postings:           ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	/* ===================== */
 	/* SYNCHRONIZE COMPANIES */
 	/* ===================== */
 
-	PRINT CHAR(10) + CHAR(13) + 'Synchronizing companies...';
+	PRINT CHAR(10) + 'Synchronizing companies...';
 
-	-- Delete orphaned companies
+	-- Delete stale companies
 	DELETE c
 	FROM core.companies AS c
 	WHERE NOT EXISTS (
@@ -280,16 +280,16 @@ BEGIN TRY
 	);
 
 	
-	PRINT '- Orphaned companies:           ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Stale companies:              ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	/* ===================== */
 	/* SYNCHRONIZE LOCATIONS */
 	/* ===================== */
 
-	PRINT CHAR(10) + CHAR(13) + 'Synchronizing locations...';
+	PRINT CHAR(10) + 'Synchronizing locations...';
 
-	-- Delete orphaned locations --
+	-- Delete stale locations --
 	DELETE l 
 	FROM core.locations AS l
 	WHERE NOT EXISTS (
@@ -301,14 +301,14 @@ BEGIN TRY
 			AND s.load_run_id = @load_run_id	-- Latest staging load
 	);
 
-	PRINT '- Orphaned locations:           ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Stale locations:              ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 	
 
 	/* =============================== */
 	/* SYNCHRONIZE STANDARDIZED SKILLS */
 	/* =============================== */
 	
-	PRINT CHAR(10) + CHAR(13) + 'Synchronizing standardized skills...';
+	PRINT CHAR(10) + 'Synchronizing standardized skills...';
 
 	-- Delete stale standardized skills
 	DELETE c
@@ -331,9 +331,9 @@ BEGIN TRY
 	/* SYNCHRONIZE SKILL CLASSIFICATIONS */
 	/* ================================= */
 
-	PRINT CHAR(10) + CHAR(13) + 'Synchronizing skill classifications...';
+	PRINT CHAR(10) + 'Synchronizing skill classifications...';
 
-	-- Delete orphaned skill classifications
+	-- Delete stale skill classifications
 	DELETE c 
 	FROM core.skill_classifications AS c
 	WHERE NOT EXISTS (
@@ -345,7 +345,7 @@ BEGIN TRY
 			AND s.load_run_id = @load_run_id	-- Latest staging load
 	);
 
-	PRINT '- Orphaned classifications:     ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
+	PRINT '- Stale skill classifications:  ' + CAST(@@ROWCOUNT AS VARCHAR(20)) + ' deleted';
 
 
 	PRINT(CHAR(13))
