@@ -3,7 +3,8 @@ Run the end-to-end ETL pipeline from a single entry point.
 
 This script orchestrates the complete demo pipeline by executing the following stages:
 1. Extract job posting metadata and highlighted skill mentions into CSV files.
-2. Refresh the Excel skill standardization workbook to import the latest extracted skill mentions.
+2. Verify that the Excel skill standardization workbookand is up-to-date and, if necessary, 
+   prompt user to refresh it manually.
 3. Extract validated tables from the skill standardization workbook into CSV files.
 4. Set up or refresh the demo SQL Server database.
 
@@ -41,7 +42,7 @@ from openpyxl import load_workbook
 from scripts.extraction.job_posting_extraction import SKILL_OUTPUT_PATH
 from scripts.extraction.skill_standardization_pipeline_extraction import (
     RAW_SKILLS_IMPORT_TABLE,
-    WORKBOOK_PATH,
+    SKILL_STANDARD_WORKBOOK_PATH,
     extract_excel_table,
     validate_table_fields,
 )
@@ -79,13 +80,6 @@ JOB_POSTING_EXTRACTION_SUMMARY = (
     / "data"
     / "extracted_demo"
     / "job_posting_extraction_summary.json"
-)
-
-SKILL_STANDARD_WB_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "source"
-    / "skill_standardization_pipeline.xlsx"
 )
 
 SKILL_STANDARD_WB_EXTRACTION_SCRIPT = (
@@ -133,7 +127,7 @@ def is_workbook_up_to_date() -> bool:
         try:
             # Load workbook
             workbook = load_workbook(
-                WORKBOOK_PATH,
+                SKILL_STANDARD_WORKBOOK_PATH,
                 data_only=True
             )
             break
@@ -397,7 +391,7 @@ def main() -> None:
     else:
         print("Workbook is not up-to-date; manual refresh needed.\n")
         print("Please follow the instructions below:")
-        print(f"1/ Open the Excel workbook {WORKBOOK_PATH}.")
+        print(f"1/ Open the Excel workbook {SKILL_STANDARD_WORKBOOK_PATH}.")
         print("2/ Refresh all queries and connections to get the latest data.")
         print("3/ Save workbook and close Excel.")
 

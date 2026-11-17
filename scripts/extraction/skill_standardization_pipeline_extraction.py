@@ -91,7 +91,7 @@ SKILL_CLASSIFICATION_FIELDS = [
 # CONFIGURATION
 # ==============================
 
-WORKBOOK_PATH = "data/source/skill_standardization_pipeline.xlsx"
+SKILL_STANDARD_WORKBOOK_PATH = "data/source/skill_standardization_pipeline.xlsx"
 
 EXPORT_TABLES = (
     {
@@ -223,13 +223,13 @@ def main():
     # Load workbook
     try:
         workbook = load_workbook(
-            WORKBOOK_PATH, 
+            SKILL_STANDARD_WORKBOOK_PATH, 
             data_only=True
         )
-        print(f"Successfully loaded workbook: {WORKBOOK_PATH}")
+        print(f"Successfully loaded workbook: {SKILL_STANDARD_WORKBOOK_PATH}")
 
     except Exception as e:
-        print(f"\nFailed to load workbook: {WORKBOOK_PATH}"
+        print(f"\nFailed to load workbook: {SKILL_STANDARD_WORKBOOK_PATH}"
               f"\nReason: {e}")
         
         return 1
