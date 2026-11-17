@@ -12,3 +12,5 @@ data/source/annotated_job_postings/*
 
 __pycache__/
 *.py[cod]
+
+.venv/
