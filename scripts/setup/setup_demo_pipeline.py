@@ -5,7 +5,7 @@ This script orchestrates the complete demo pipeline by executing the following s
 1. Extract job posting metadata and highlighted skill mentions into CSV files.
 2. Refresh the Excel skill standardization workbook to import the latest extracted skill mentions.
 3. Extract validated tables from the skill standardization workbook into CSV files.
-4. Create and populate the demo SQL Server database.
+4. Set up or refresh the demo SQL Server database.
 
 Requirements
 ------------
@@ -207,8 +207,8 @@ def validate_sql_credentials(
         f"PWD={password};"
     )
 
-    with pyodbc.connect(connection_string, timeout=5):
-        pass
+    connection = pyodbc.connect(connection_string, timeout=5)
+    connection.close()
 
 
 def get_sql_credentials() -> tuple[str | None, str | None]:
@@ -260,10 +260,22 @@ def get_sql_credentials() -> tuple[str | None, str | None]:
     )
 
 
-def setup_database(
+def setup_or_refresh_database(
+    action: str,
     username: str | None = None,
     password: str | None = None,
 ) -> None:
+
+    script = None
+
+    if action == "setup":
+        script = "setup_demo_database.sql"
+    elif action == "refresh":
+        script = "refresh_demo_database.sql"
+    else:
+        raise ValueError(
+            f"Incorrect action: {action}; must be either 'setup' or 'refresh'"
+        )
 
     env = os.environ.copy()
     env["PROJECT_ROOT"] = PROJECT_ROOT.as_posix()
@@ -272,7 +284,7 @@ def setup_database(
         "sqlcmd",
         "-S", SQL_SERVER,
         "-b",
-        "-i", "setup_demo_database.sql",
+        "-i", script,
     ]
 
     if SQL_AUTH_MODE == "trusted":
@@ -303,14 +315,20 @@ def setup_database(
 
 
 def get_connection_string(
+    database: str = "master",
     username: str | None = None,
     password: str | None = None,
 ) -> str:
 
+    if database not in ["master", "JobPostingsAnalysis_Demo"]:
+        raise ValueError(
+            f"Unknown database: {database}; database must be either 'master' or 'JobPostingsAnalysis_Demo'"
+        )
+
     connection_string = (
         f"Driver={{{SQL_ODBC_DRIVER}}};"
         f"Server={SQL_SERVER};"
-        "Database=JobPostingsAnalysis_Demo;"
+        f"Database={database};"
     )
 
     if SQL_AUTH_MODE == "trusted":
@@ -342,7 +360,7 @@ def fetch_scalar(cursor, query) -> int:
 
 def main() -> None:
     print("========================================")
-    print("Job Postings Analysis Demo Setup")
+    print("Job Postings Analysis Demo Pipeline")
     print("========================================")
 
     check_sqlcmd()
@@ -428,19 +446,48 @@ def main() -> None:
 
 
     # =======================================
-    # RUN DATABASE CREATION & LOAD SCRIPT
+    # RUN DATABASE SETUP OR REFRESH SCRIPT
     # =======================================
 
-    print_step("[4/4] Creating and loading demo database...")
-
     username, password = get_sql_credentials()
+
+    connection_string = get_connection_string("master", username, password)
     
-    setup_database(username, password)
-
-    connection_string = get_connection_string(username, password)
-
     connection = pyodbc.connect(connection_string)
-        
+
+    try:
+        cursor = connection.cursor()
+        query = "IF DB_ID('JobPostingsAnalysis_Demo') IS NULL SELECT 0 ELSE SELECT 1;"
+
+        cursor.execute(query)
+        row = cursor.fetchone()
+
+        if row is None:
+            raise RuntimeError("Failed to retrieve database information.")
+
+        if row[0] == 0:
+            action = "setup"
+            print_step("[4/4] Creating and loading demo database...")
+
+        elif row[0] == 1:
+            action = "refresh"
+            print_step("[4/4] Refreshing demo database...")
+
+        else:
+            raise ValueError(
+                f"Incorrect query result: {row[0]}; must be 0 or 1."
+            )
+
+    finally:
+        connection.close()
+
+    setup_or_refresh_database(action, username, password)
+
+
+    connection_string = get_connection_string("JobPostingsAnalysis_Demo", username, password)
+    
+    connection = pyodbc.connect(connection_string)
+    
     try:
         cursor = connection.cursor()
     
@@ -484,7 +531,7 @@ def main() -> None:
 
     print(f"\n{50 * '-'}")
     
-    print("\n[OK] Demo setup completed successfully.")
+    print("\n[OK] Demo pipeline completed successfully.")
 
     print(f"\n{50 * '='}")
     print("PIPELINE SUMMARY")

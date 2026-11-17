@@ -1,3 +1,4 @@
+SET NOCOUNT ON;
 
 CREATE DATABASE JobPostingsAnalysis_Demo;
 GO
